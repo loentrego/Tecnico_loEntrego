@@ -1,0 +1,53 @@
+# =====================================================================
+#  LoEntrego · Desplegar un frontend al VPS (plantilla)
+#  Copiar a cada repo de frontend como .github/workflows/desplegar.yml
+#  y cambiar SITIO según el repo:
+#    frontend_mainweb → web · frontend_appweb → app
+#    frontend_admin → admin · frontend-maintenance → mantenimiento
+#
+#  Secretos del repo (Settings → Secrets and variables → Actions):
+#    VPS_HOST       IP del VPS de Bluehost
+#    VPS_SSH_KEY    llave privada del usuario "despliegue" (la pública va en el VPS)
+#    VPS_KNOWN      salida de: ssh-keyscan -H <IP del VPS>
+#
+#  GitHub Pages sigue publicando el mockup con datos ficticios; esto es lo real.
+# =====================================================================
+name: Desplegar al VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}          # botón "Run workflow" para desplegar a mano
+
+concurrency:
+  group: desplegar
+  cancel-in-progress: false
+
+env:
+  SITIO: app                     # ← cambiar: web · app · admin · mantenimiento
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Llave SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.VPS_KNOWN }}" > ~/.ssh/known_hosts
+
+      - name: Copiar archivos al VPS
+        run: |
+          rsync -az --delete \
+            --exclude '.git' --exclude '.github' --exclude 'herramientas' --exclude 'docs' --exclude '*.md' \
+            ./ despliegue@${{ secrets.VPS_HOST }}:/srv/loentrego/www/${SITIO}/
+
+      - name: Comprobar
+        run: |
+          case "$SITIO" in
+            web) URL=https://loentrego.com ;; mantenimiento) URL=https://app.loentrego.com/_mantenimiento/ ;;
+            *) URL=https://$SITIO.loentrego.com ;;
+          esac
+          curl -fsS -o /dev/null -w "%{http_code} $URL\n" "$URL"

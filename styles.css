@@ -409,3 +409,33 @@ a.k.fk:hover { background: var(--move); color: #fff; }
 .m-delete { background: var(--fail-bg); color: var(--fail); }
 .tipo-card, .ll, .pant, .io-grid > * { min-width: 0; }
 @media (max-width: 640px) { :not(pre) > code { white-space: normal; overflow-wrap: anywhere; } }
+
+/* Arquitectura: dominio, sitios del VPS y flujo de GitHub */
+.arq-box.is-note { background: none; border-style: dashed; font-size: 0.6875rem; font-weight: 500; color: #CFC8F7; }
+.arq-sitios { display: flex; flex-wrap: wrap; gap: 4px; }
+.arq-sitios span { padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; color: #fff; }
+.gh { display: grid; grid-template-columns: 1fr 22px 1fr 22px 1.2fr 52px 1fr; align-items: center; gap: 0; margin-top: 0.75rem; padding: 1rem; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.gh-box { display: flex; flex-direction: column; gap: 2px; padding: 0.65rem 0.8rem; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+.gh-box b { font-family: 'Outfit', sans-serif; font-size: 0.9375rem; }
+.gh-box small { font-size: 0.75rem; line-height: 1.4; color: var(--muted); }
+.gh-box.is-gh { background: var(--tinta); border-color: transparent; color: #fff; }
+.gh-box.is-gh small { color: #CFC8F7; }
+.gh-box.is-act { background: var(--azul); border-color: transparent; color: #fff; }
+.gh-box.is-act small { color: #CFC8F7; }
+.gh-box.is-vpsd { border: 2px solid var(--lima); }
+.gh-box.is-vpsd b { font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; }
+.gh-flecha { position: relative; height: 2px; margin: 0 3px; background: var(--muted); }
+.gh-flecha::after { content: ''; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left-color: var(--muted); border-right: 0; }
+.gh-flecha.is-vps { background: var(--lima); } .gh-flecha.is-vps::after { border-left-color: #8DB01C; }
+.gh-flecha span { position: absolute; left: 50%; bottom: 6px; translate: -50% 0; font-size: 0.625rem; font-weight: 700; white-space: nowrap; color: #6E8A12; }
+.gh-lado { grid-column: 1 / -1; margin-top: 0.75rem; padding: 0.65rem 0.85rem; border-radius: 12px; border: 1.5px dashed #C8C2E6; background: #fff; font-size: 0.8125rem; color: var(--muted); }
+.gh-lado b { color: var(--text); }
+.gh-lado > b { margin-right: 6px; font-family: 'Outfit', sans-serif; }
+@media (max-width: 1100px) {
+  .gh { grid-template-columns: 1fr; gap: 0.5rem; }
+  .gh-flecha { width: 2px; height: 16px; margin: 0 auto; }
+  .gh-flecha::after { right: -4px; top: auto; bottom: -4px; border: 5px solid transparent; border-top-color: var(--muted); border-bottom: 0; }
+  .gh-flecha.is-vps::after { border-top-color: #8DB01C; border-left-color: transparent; }
+  .gh-flecha span { left: 12px; bottom: auto; top: 50%; translate: 0 -50%; }
+  .gh-lado { margin-top: 0.25rem; }
+}

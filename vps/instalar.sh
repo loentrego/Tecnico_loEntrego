@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =====================================================================
 #  LoEntrego · Instalación del VPS (Bluehost · Ubuntu 22.04 o 24.04 LTS, sin cPanel)
-#  Antes: en Namecheap (Advanced DNS) crear el registro A "app" → IP del VPS.
-#  Uso (como root, en un servidor recién creado):
-#     DOMINIO=app.loentrego.com CORREO=contacto@loentrego.com bash instalar.sh
+#  Antes, en Namecheap (Advanced DNS), 4 registros A → IP del VPS: @, www, app, admin.
+#  Uso (como root, en un servidor recién creado, con la carpeta vps/ completa):
+#     DOMINIO=loentrego.com CORREO=contacto@loentrego.com bash instalar.sh
 #  Es idempotente: se puede correr de nuevo sin romper nada.
 # =====================================================================
 set -euo pipefail
-DOMINIO="${DOMINIO:-app.loentrego.com}"
+DOMINIO="${DOMINIO:-loentrego.com}"   # dominio raíz: se usan @, www, app y admin
 CORREO="${CORREO:-contacto@loentrego.com}"
 APP_USER=loentrego
 DB_NAME=loentrego
@@ -26,7 +26,7 @@ fi
 paso "Sistema al día, zona horaria de Bogotá y actualizaciones de seguridad automáticas"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q && apt-get upgrade -y -q
-apt-get install -y -q ca-certificates curl gnupg git unzip jq htop unattended-upgrades
+apt-get install -y -q ca-certificates curl gnupg git rsync unzip jq htop unattended-upgrades
 timedatectl set-timezone America/Bogota
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
@@ -46,6 +46,20 @@ systemctl enable --now fail2ban
 paso "Usuario de la aplicación (sin acceso root)"
 id "$APP_USER" >/dev/null 2>&1 || adduser --system --group --home /srv/loentrego --shell /bin/bash "$APP_USER"
 mkdir -p /srv/loentrego/{api,respaldos,logs} && chown -R "$APP_USER":"$APP_USER" /srv/loentrego
+
+paso "Carpetas de los frontends y usuario de despliegue (lo usa GitHub Actions por SSH)"
+# Cada repo de frontend se copia a su carpeta; el usuario "despliegue" solo puede escribir ahí
+id despliegue >/dev/null 2>&1 || adduser --disabled-password --gecos "" despliegue
+mkdir -p /srv/loentrego/www/{web,app,admin,mantenimiento} /srv/loentrego/mantenimiento /home/despliegue/.ssh
+chown -R despliegue:despliegue /srv/loentrego/www
+chmod 755 /srv/loentrego /srv/loentrego/www
+touch /home/despliegue/.ssh/authorized_keys
+chown -R despliegue:despliegue /home/despliegue/.ssh && chmod 700 /home/despliegue/.ssh && chmod 600 /home/despliegue/.ssh/authorized_keys
+# Puede reiniciar la API después de un despliegue, y nada más
+echo 'despliegue ALL=(root) NOPASSWD: /usr/bin/systemctl restart loentrego-api' > /etc/sudoers.d/loentrego-despliegue
+chmod 440 /etc/sudoers.d/loentrego-despliegue
+# Mantenimiento por sitio: touch /srv/loentrego/mantenimiento/app.on (web.on, admin.on)
+chown root:despliegue /srv/loentrego/mantenimiento && chmod 775 /srv/loentrego/mantenimiento
 
 paso "PostgreSQL 16 + PostGIS 3 (repositorio oficial de PostgreSQL) y GDAL (ogr2ogr)"
 # El repositorio oficial da la versión 16 tanto en Ubuntu 22.04 como en 24.04
@@ -104,12 +118,15 @@ systemctl enable loentrego-api   # se inicia cuando el código esté en /srv/loe
 paso "Nginx + Certbot (HTTPS de Let's Encrypt con renovación automática)"
 apt-get install -y -q nginx certbot python3-certbot-nginx
 DIR="$(cd "$(dirname "$0")" && pwd)"
-sed "s/app.loentrego.com/$DOMINIO/g" "$DIR/nginx-app.conf" > /etc/nginx/sites-available/loentrego
+sed "s/loentrego\.com/$DOMINIO/g" "$DIR/nginx-app.conf" > /etc/nginx/sites-available/loentrego
+install -m 644 "$DIR/nginx-comun.conf" /etc/nginx/snippets/loentrego-comun.conf
+install -m 644 "$DIR/nginx-api.conf" /etc/nginx/snippets/loentrego-api.conf
 ln -sf /etc/nginx/sites-available/loentrego /etc/nginx/sites-enabled/loentrego
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
-certbot --nginx -d "$DOMINIO" -m "$CORREO" --agree-tos --redirect --non-interactive || \
-  echo "Certbot falló: revisa en Namecheap (Advanced DNS) que el registro A de $DOMINIO apunte a este VPS y vuelve a correr el script."
+certbot --nginx -d "$DOMINIO" -d "www.$DOMINIO" -d "app.$DOMINIO" -d "admin.$DOMINIO" \
+  -m "$CORREO" --agree-tos --redirect --non-interactive || \
+  echo "Certbot falló: revisa en Namecheap (Advanced DNS) que @, www, app y admin apunten a este VPS y vuelve a correr el script."
 
 paso "Respaldos: rclone + copia diaria de la base a las 3:15 a. m."
 apt-get install -y -q rclone
@@ -128,5 +145,9 @@ cat > /etc/logrotate.d/loentrego <<'ROT'
 ROT
 
 paso "Listo"
-echo "Siguiente: subir la API a /srv/loentrego/api, correr db/esquema.sql y db/semilla.sql,"
-echo "configurar rclone (rclone config) y probar: curl -I https://$DOMINIO/api/salud"
+echo "Siguiente:"
+echo " 1. Pegar la llave pública de GitHub Actions en /home/despliegue/.ssh/authorized_keys"
+echo " 2. Hacer push a main en cada frontend (o correr su Action) para llenar /srv/loentrego/www/*"
+echo " 3. Subir la API a /srv/loentrego/api y correr db/esquema.sql y db/semilla.sql"
+echo " 4. Configurar rclone (rclone config) para los respaldos"
+echo " 5. Probar: https://$DOMINIO  https://app.$DOMINIO  https://admin.$DOMINIO  https://app.$DOMINIO/api/salud"

@@ -15,14 +15,18 @@ mantenimiento). Abre `index.html` para verla.
 | `datos/entradas.js` | **Entradas y salidas**: cada campo y botón de los 4 frontends, la llamada a la API a la que va y el JSON que envía y recibe. La tabla de la API sale de aquí. |
 | `datos/esquema.json`, `datos/esquema.js` | Estructura de la base, generada desde la base real. No editar a mano. |
 | `vps/instalar.sh` | Instala el VPS de Bluehost (Ubuntu 22.04 o 24.04, sin cPanel): firewall, Nginx, Certbot, PostgreSQL + PostGIS, Redis, Node.js, servicio de la API y respaldos. |
-| `vps/nginx-app.conf` | Sitio de Nginx para `app.loentrego.com` con límites en el inicio de sesión. |
+| `vps/nginx-app.conf` | Los 3 sitios de Nginx: web, app y admin, cada uno con su `/api`. |
+| `vps/nginx-comun.conf`, `vps/nginx-api.conf` | Lo común a los sitios (encabezados, caché, página de mantenimiento) y el paso de `/api` a la API. |
+| `github/desplegar-frontend.yml` | Plantilla de GitHub Actions: con cada push a `main` copia el frontend a su carpeta en el VPS. |
 | `vps/respaldo.sh` | Respaldo diario de la base (14 días locales + copia cifrada con rclone). |
 
 ## Infraestructura
 
 - **Servidor:** VPS de Bluehost · 2 vCPU · 4 GB RAM · 100 GB.
-- **Dominio y DNS:** Namecheap (Advanced DNS: registro A `app` → IP del VPS).
-- **Frontends:** GitHub Pages.
+- **Dominio y DNS:** Namecheap (Advanced DNS: registros A `@`, `www`, `app` y `admin` → IP del VPS).
+- **Lo que usa la gente:** todo en el VPS, bajo el dominio. `loentrego.com` (web), `app.loentrego.com` (AppWeb), `admin.loentrego.com` (panel) y `/api` en cada uno.
+- **GitHub:** organiza el código y despliega al VPS con GitHub Actions (`github/desplegar-frontend.yml`). GitHub Pages solo publica el mockup con datos ficticios.
+- **Mantenimiento:** `touch /srv/loentrego/mantenimiento/app.on` (o `web.on`, `admin.on`); se quita borrando el archivo.
 
 ## Crear la base
 

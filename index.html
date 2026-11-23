@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 <link rel="icon" href="assets/icon-192.png">
 </head>
 <body>
@@ -50,9 +50,9 @@
     <section class="sec" id="arquitectura" aria-labelledby="t-arq">
       <p class="num">01</p>
       <h2 id="t-arq">Arquitectura</h2>
-      <p class="lead">Los frontends son páginas estáticas en GitHub Pages; el dominio está en Namecheap y el servidor es un VPS de Bluehost. Todo lo que guarda o consulta datos pasa por <b>una sola API</b> en el VPS (<code>app.loentrego.com</code>), y la API es la única que habla con la base de datos.</p>
+      <p class="lead">La gente entra al <b>dominio</b> (<code>loentrego.com</code>, en Namecheap), que apunta al <b>VPS de Bluehost</b>. Ahí Nginx sirve los cuatro frontends y la API, y la API es la única que habla con la base de datos. <b>GitHub</b> no atiende usuarios: guarda el código, despliega al VPS con GitHub Actions y publica en Pages un mockup con datos ficticios.</p>
 
-      <div class="arq" role="img" aria-label="Diagrama: usuarios, frontends en GitHub Pages, DNS en Namecheap, VPS de Bluehost con Nginx, API, PostgreSQL y Redis, y servicios externos">
+      <div class="arq" role="img" aria-label="Diagrama: las personas entran a loentrego.com, app y admin; el DNS de Namecheap apunta al VPS de Bluehost, donde Nginx sirve los frontends y pasa /api a la API, que usa PostgreSQL y Redis y llama a servicios externos">
         <div class="arq-col">
           <p class="arq-t">Quién entra</p>
           <div class="arq-box">Clientes y comercios<small>Web pública</small></div>
@@ -61,17 +61,20 @@
         </div>
         <div class="arq-arrow" aria-hidden="true"></div>
         <div class="arq-col">
-          <p class="arq-t">GitHub Pages</p>
-          <div class="arq-box is-front">frontend_mainweb</div>
-          <div class="arq-box is-front">frontend_appweb</div>
-          <div class="arq-box is-front">frontend_admin</div>
-          <div class="arq-box is-front">frontend-maintenance</div>
+          <p class="arq-t">Dominio · Namecheap</p>
+          <div class="arq-box is-front">loentrego.com<small>y www</small></div>
+          <div class="arq-box is-front">app.loentrego.com</div>
+          <div class="arq-box is-front">admin.loentrego.com</div>
+          <div class="arq-box is-note">Registros A → IP del VPS</div>
         </div>
-        <div class="arq-arrow" aria-hidden="true"><span>HTTPS<br>JSON</span></div>
+        <div class="arq-arrow" aria-hidden="true"><span>HTTPS</span></div>
         <div class="arq-col arq-vps">
           <p class="arq-t">VPS Bluehost · Ubuntu</p>
-          <div class="arq-box is-edge">Namecheap DNS → Nginx<small>HTTPS · límites · proxy</small></div>
-          <div class="arq-box is-api">API Node.js<small>systemd · puerto 3000</small></div>
+          <div class="arq-box is-edge">Nginx<small>HTTPS · sirve los frontends · pasa /api</small></div>
+          <div class="arq-sitios">
+            <span>web</span><span>app</span><span>admin</span><span>mantenimiento</span>
+          </div>
+          <div class="arq-box is-api">API Node.js<small>/api · systemd · puerto 3000</small></div>
           <div class="arq-pair">
             <div class="arq-box is-db">PostgreSQL 16<small>+ PostGIS</small></div>
             <div class="arq-box is-db">Redis<small>colas</small></div>
@@ -88,8 +91,44 @@
         </div>
       </div>
 
+      <div class="gh" role="img" aria-label="Diagrama: el equipo hace push a GitHub; GitHub Actions copia los archivos al VPS; GitHub Pages solo muestra el mockup">
+        <div class="gh-box"><b>Equipo</b><small>edita y hace push a <code>main</code></small></div>
+        <div class="gh-flecha" aria-hidden="true"></div>
+        <div class="gh-box is-gh"><b>GitHub</b><small>5 repositorios: el código, ordenado y con historial</small></div>
+        <div class="gh-flecha" aria-hidden="true"></div>
+        <div class="gh-box is-act"><b>GitHub Actions</b><small>copia los archivos al VPS por SSH (rsync) y comprueba que respondan</small></div>
+        <div class="gh-flecha is-vps" aria-hidden="true"><span>al VPS</span></div>
+        <div class="gh-box is-vpsd"><b>/srv/loentrego/www/…</b><small>lo que ve la gente en el dominio</small></div>
+        <div class="gh-lado"><b>GitHub Pages</b><small>Solo el <b>mockup</b> con datos ficticios, para mostrar y probar diseño. No usa la API ni la base, y no es el sistema real.</small></div>
+      </div>
+
+      <h3 class="h3">Dominios y qué sirve cada uno</h3>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th>Dirección</th><th>Qué ve la gente</th><th>Carpeta en el VPS</th><th>Repositorio</th><th>API</th></tr></thead>
+          <tbody>
+            <tr><td><code>loentrego.com</code> · <code>www</code></td><td>Web pública</td><td><code>/srv/loentrego/www/web</code></td><td><code>frontend_mainweb</code></td><td>Solo <code>/api/publico/*</code> (formularios)</td></tr>
+            <tr><td><code>app.loentrego.com</code></td><td>AppWeb de comercios y repartidores</td><td><code>/srv/loentrego/www/app</code></td><td><code>frontend_appweb</code></td><td><code>/api/*</code></td></tr>
+            <tr><td><code>admin.loentrego.com</code></td><td>Panel de administración</td><td><code>/srv/loentrego/www/admin</code></td><td><code>frontend_admin</code></td><td><code>/api/*</code></td></tr>
+            <tr><td>Cualquiera de las tres, en mantenimiento</td><td>"Volvemos pronto"</td><td><code>/srv/loentrego/www/mantenimiento</code></td><td><code>frontend-maintenance</code></td><td><code>/api/publico/canales</code></td></tr>
+            <tr><td><code>loentrego.github.io/…</code></td><td>Mockup con datos ficticios</td><td>— (GitHub Pages)</td><td>los mismos repos</td><td>Ninguna</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Cada dominio llama a <code>/api</code> en su mismo dominio (Nginx lo pasa a la API), así no hace falta configurar CORS.</p>
+
+      <h3 class="h3">Prender y apagar el mantenimiento</h3>
+      <pre class="code"><code><span class="c"># La AppWeb muestra "Volvemos pronto" (la web y el admin siguen normales)</span>
+touch /srv/loentrego/mantenimiento/app.on
+
+<span class="c"># Vuelve a la normalidad</span>
+rm /srv/loentrego/mantenimiento/app.on
+
+<span class="c"># Igual para los otros sitios: web.on · admin.on</span></code></pre>
+      <p class="note">No hay que tocar código ni reiniciar nada: Nginx responde 503 con la página de mantenimiento mientras exista el archivo. Probado con los cuatro frontends reales.</p>
+
       <div class="grid-3 mt">
-        <article class="trait"><b>Estático afuera</b><p>Los frontends no tienen servidor propio: se publican con un push a <code>main</code>. Sin costo y sin mantenimiento.</p></article>
+        <article class="trait"><b>Todo en el dominio</b><p>Frontends y API viven en el VPS, bajo <code>loentrego.com</code>. GitHub guarda y despliega; Pages solo muestra el mockup.</p></article>
         <article class="trait"><b>Una sola puerta</b><p>Solo la API toca la base. Postgres y Redis escuchan en <code>localhost</code>; desde internet solo se ven los puertos 80 y 443.</p></article>
         <article class="trait"><b>Reglas en la base</b><p>El flujo del pedido, la autoasignación por zona y el historial viven en Postgres. Ningún cliente se las puede saltar.</p></article>
       </div>
@@ -121,7 +160,7 @@
             <tr><td><b>fail2ban</b></td><td>1.x</td><td>Bloquea IPs que intentan adivinar claves por SSH.</td><td><code>fail2ban</code></td></tr>
             <tr><td><b>unattended-upgrades</b></td><td>—</td><td>Parches de seguridad automáticos cada noche.</td><td><code>unattended-upgrades</code></td></tr>
             <tr><th colspan="4" class="grupo">Web</th></tr>
-            <tr><td><b>Nginx</b></td><td>1.24</td><td>Recibe HTTPS, limita intentos de inicio de sesión y pasa las solicitudes a la API.</td><td><code>nginx</code></td></tr>
+            <tr><td><b>Nginx</b></td><td>1.24</td><td>Sirve los 4 frontends en el dominio, recibe HTTPS, limita intentos de inicio de sesión, pasa <code>/api</code> a la API y muestra el mantenimiento.</td><td><code>nginx</code></td></tr>
             <tr><td><b>Certbot</b></td><td>2.x</td><td>Certificado HTTPS gratis de Let's Encrypt, con renovación automática.</td><td><code>certbot python3-certbot-nginx</code></td></tr>
             <tr><th colspan="4" class="grupo">Datos</th></tr>
             <tr><td><b>PostgreSQL</b></td><td>16</td><td>La base de datos de todo el ecosistema.</td><td><code>postgresql postgresql-contrib</code></td></tr>
@@ -131,7 +170,8 @@
             <tr><th colspan="4" class="grupo">Aplicación</th></tr>
             <tr><td><b>Node.js</b></td><td>22 LTS</td><td>Corre la API.</td><td><code>nodejs</code> (NodeSource)</td></tr>
             <tr><td><b>systemd</b></td><td>—</td><td>Arranca la API con el servidor y la reinicia si se cae (<code>loentrego-api.service</code>).</td><td>incluido</td></tr>
-            <tr><td><b>Git</b></td><td>2.x</td><td>Bajar el código de la API desde GitHub.</td><td><code>git</code></td></tr>
+            <tr><td><b>Git</b></td><td>2.x</td><td>Bajar el código de la API desde GitHub.</td></tr>
+            <tr><td><b>rsync</b></td><td>3.x</td><td>Recibe los archivos que copia GitHub Actions en cada despliegue (usuario <code>despliegue</code>).</td><td><code>rsync</code><td><code>git</code></td></tr>
             <tr><th colspan="4" class="grupo">Operación</th></tr>
             <tr><td><b>rclone</b></td><td>1.6x</td><td>Sube los respaldos cifrados al almacenamiento de objetos.</td><td><code>rclone</code></td></tr>
             <tr><td><b>cron</b></td><td>—</td><td>Respaldo diario de la base a las 3:15 a. m.</td><td>incluido</td></tr>
@@ -141,19 +181,24 @@
       </div>
 
       <h3 class="h3">Instalar</h3>
-      <pre class="code"><code><span class="c"># 1. Namecheap → Domain List → loentrego.com → Advanced DNS:</span>
-<span class="c">#    registro A, host "app", valor = IP del VPS de Bluehost, TTL automático</span>
+      <pre class="code"><code><span class="c"># 1. Namecheap → Domain List → loentrego.com → Advanced DNS → 4 registros A,</span>
+<span class="c">#    todos con valor = IP del VPS de Bluehost:   @   www   app   admin</span>
 <span class="c"># 2. Copiar la carpeta vps/ al servidor y correr como root:</span>
-DOMINIO=app.loentrego.com CORREO=contacto@loentrego.com bash vps/instalar.sh
+DOMINIO=loentrego.com CORREO=contacto@loentrego.com bash vps/instalar.sh
 
-<span class="c"># 3. Crear las tablas y los datos iniciales</span>
+<span class="c"># 3. Pegar la llave pública de GitHub Actions para el usuario "despliegue"</span>
+nano /home/despliegue/.ssh/authorized_keys
+<span class="c">#    y en cada repo de frontend: github/desplegar-frontend.yml → .github/workflows/</span>
+
+<span class="c"># 4. Crear las tablas y los datos iniciales</span>
 source /srv/loentrego/.env
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/esquema.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/semilla.sql
 
-<span class="c"># 4. Comprobar</span>
+<span class="c"># 5. Comprobar</span>
+curl -I https://loentrego.com
 curl -I https://app.loentrego.com/api/salud</code></pre>
-      <p class="note">El script crea el usuario <code>loentrego</code> (sin acceso root), la base, una clave aleatoria en <code>/srv/loentrego/.env</code>, el servicio de la API, el sitio de Nginx con HTTPS y el respaldo diario.</p>
+      <p class="note">El script crea el usuario <code>loentrego</code> (sin acceso root), la base, una clave aleatoria en <code>/srv/loentrego/.env</code>, el usuario <code>despliegue</code> con sus carpetas, el servicio de la API, los tres sitios de Nginx con HTTPS (un certificado para <code>@</code>, <code>www</code>, <code>app</code> y <code>admin</code>) y el respaldo diario.</p>
     </section>
 
     <!-- ============ 03 SERVICIOS ============ -->
@@ -164,9 +209,9 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
       <h3 class="h3">Imprescindibles</h3>
       <div class="grid-3">
-        <article class="svc"><span class="svc-tag">Servidor</span><h4>Bluehost (VPS)</h4><p>2 vCPU, 4 GB de RAM y 100 GB. Aquí corren Nginx, la API, PostgreSQL y Redis.</p><small>Acceso: SSH con llave</small></article>
-        <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Namecheap</h4><p>Dominio <code>loentrego.com</code> y sus registros: <code>app</code> (A → VPS), <code>www</code> y la raíz (GitHub Pages), y MX, SPF, DKIM y DMARC del correo.</p><small>Variable: —</small></article>
-        <article class="svc"><span class="svc-tag">Código y frontends</span><h4>GitHub + GitHub Pages</h4><p>Repositorios, publicación de las 4 páginas y despliegue de la API con GitHub Actions por SSH.</p><small>Variable: llave SSH de despliegue</small></article>
+        <article class="svc"><span class="svc-tag">Servidor</span><h4>Bluehost (VPS)</h4><p>2 vCPU, 4 GB de RAM y 100 GB. Aquí está todo lo que usa la gente: los 4 frontends, Nginx, la API, PostgreSQL y Redis.</p><small>Acceso: SSH con llave</small></article>
+        <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Namecheap</h4><p>Dominio <code>loentrego.com</code>. Registros A de <code>@</code>, <code>www</code>, <code>app</code> y <code>admin</code> → IP del VPS, y MX, SPF, DKIM y DMARC del correo.</p><small>Variable: —</small></article>
+        <article class="svc"><span class="svc-tag">Código y despliegue</span><h4>GitHub</h4><p>Organiza el código de los 5 repositorios. Con cada push a <code>main</code>, GitHub Actions copia los archivos al VPS. GitHub Pages solo publica el mockup con datos ficticios.</p><small>Secretos: <code>VPS_HOST</code> · <code>VPS_SSH_KEY</code> · <code>VPS_KNOWN</code></small></article>
         <article class="svc"><span class="svc-tag">Notificaciones</span><h4>WhatsApp Business Cloud API (Meta)</h4><p>Avisos al cliente final: "va en camino", "entregado", "no pudimos entregar". Plantillas aprobadas por Meta.</p><small><code>WA_TOKEN</code> · <code>WA_PHONE_ID</code> · <code>WA_VERIFY</code></small></article>
         <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en un punto para asignar zona y localidad. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
         <article class="svc"><span class="svc-tag">Archivos</span><h4>Cloudflare R2 o Backblaze B2</h4><p>Fotos de evidencia, documentos de repartidores, soportes de pago y los respaldos cifrados de la base.</p><small><code>S3_ENDPOINT</code> · <code>S3_KEY</code> · <code>S3_SECRET</code></small></article>
@@ -238,6 +283,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <li><b>Dinero</b> en pesos enteros (<code>45000</code>); el frontend lo muestra como <code>$45.000</code>. <b>Celulares</b> solo dígitos (<code>3001234567</code>); se muestran <code>300 123 4567</code>.</li>
         <li><b>Fechas</b> en ISO 8601 con zona de Colombia (<code>2026-11-23T09:40:00-05:00</code>).</li>
         <li><b>Errores</b> siempre con la misma forma (<a href="#tipo-Error" class="t-ref">Error</a>); con 422 llega <code>campos</code> para marcar cada campo en rojo.</li>
+        <li><b>Real y mockup</b>: en el dominio (<code>loentrego.com</code>, <code>app.</code>, <code>admin.</code>) todo pasa por estas llamadas. En GitHub Pages el mockup usa datos ficticios y los usuarios demo, sin API. En producción, los usuarios demo tienen que quedar apagados.</li>
         <li><b>Lo que hoy es local</b> (zonas en localStorage, territorio.json, ESTADO de mantenimiento, usuarios demo) pasa a estas llamadas cuando exista el backend, sin cambiar las pantallas.</li>
       </ul>
 
@@ -356,7 +402,10 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <a class="dl" href="db/esquema.sql" download><span class="dl-ext">SQL</span><b>esquema.sql</b><small>Todas las tablas, tipos, funciones, reglas y vistas</small></a>
         <a class="dl" href="db/semilla.sql" download><span class="dl-ext">SQL</span><b>semilla.sql</b><small>Municipios, tarifas, canales, plantillas y usuarios de prueba</small></a>
         <a class="dl" href="vps/instalar.sh" download><span class="dl-ext">SH</span><b>instalar.sh</b><small>Instala y configura el VPS completo</small></a>
-        <a class="dl" href="vps/nginx-app.conf" download><span class="dl-ext">CONF</span><b>nginx-app.conf</b><small>Sitio de Nginx para la API</small></a>
+        <a class="dl" href="vps/nginx-app.conf" download><span class="dl-ext">CONF</span><b>nginx-app.conf</b><small>Los 3 sitios: web, app y admin</small></a>
+        <a class="dl" href="vps/nginx-comun.conf" download><span class="dl-ext">CONF</span><b>nginx-comun.conf</b><small>Común a los 3 sitios y página de mantenimiento</small></a>
+        <a class="dl" href="vps/nginx-api.conf" download><span class="dl-ext">CONF</span><b>nginx-api.conf</b><small>Paso de /api a la API</small></a>
+        <a class="dl" href="github/desplegar-frontend.yml" download><span class="dl-ext">YML</span><b>desplegar-frontend.yml</b><small>GitHub Actions: copia un frontend al VPS</small></a>
         <a class="dl" href="vps/respaldo.sh" download><span class="dl-ext">SH</span><b>respaldo.sh</b><small>Respaldo diario de la base</small></a>
         <a class="dl" href="datos/esquema.json" download><span class="dl-ext">JSON</span><b>esquema.json</b><small>Tablas y relaciones en JSON</small></a>
       </div>
