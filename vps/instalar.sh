@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # =====================================================================
-#  LoEntrego · Instalación del VPS (Ubuntu 24.04 LTS)
+#  LoEntrego · Instalación del VPS (Bluehost · Ubuntu 22.04 o 24.04 LTS, sin cPanel)
+#  Antes: en Namecheap (Advanced DNS) crear el registro A "app" → IP del VPS.
 #  Uso (como root, en un servidor recién creado):
 #     DOMINIO=app.loentrego.com CORREO=contacto@loentrego.com bash instalar.sh
 #  Es idempotente: se puede correr de nuevo sin romper nada.
@@ -13,6 +14,14 @@ DB_NAME=loentrego
 NODE_MAJOR=22
 
 paso() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
+
+# Solo Ubuntu 22.04 o 24.04 (Bluehost puede entregar AlmaLinux/cPanel: reinstalar con Ubuntu)
+. /etc/os-release
+if [ "$ID" != "ubuntu" ] || { [ "$VERSION_ID" != "22.04" ] && [ "$VERSION_ID" != "24.04" ]; }; then
+  echo "Este script es para Ubuntu 22.04 o 24.04 (encontré: $PRETTY_NAME)."
+  echo "En Bluehost: reinstala el VPS con Ubuntu, sin panel, y vuelve a correrlo."
+  exit 1
+fi
 
 paso "Sistema al día, zona horaria de Bogotá y actualizaciones de seguridad automáticas"
 export DEBIAN_FRONTEND=noninteractive
@@ -38,8 +47,14 @@ paso "Usuario de la aplicación (sin acceso root)"
 id "$APP_USER" >/dev/null 2>&1 || adduser --system --group --home /srv/loentrego --shell /bin/bash "$APP_USER"
 mkdir -p /srv/loentrego/{api,respaldos,logs} && chown -R "$APP_USER":"$APP_USER" /srv/loentrego
 
-paso "PostgreSQL 16 + PostGIS 3 y GDAL (ogr2ogr para importar zonas)"
-apt-get install -y -q postgresql postgresql-contrib postgis postgresql-16-postgis-3 gdal-bin
+paso "PostgreSQL 16 + PostGIS 3 (repositorio oficial de PostgreSQL) y GDAL (ogr2ogr)"
+# El repositorio oficial da la versión 16 tanto en Ubuntu 22.04 como en 24.04
+install -d /usr/share/postgresql-common/pgdg
+curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+  > /etc/apt/sources.list.d/pgdg.list
+apt-get update -q
+apt-get install -y -q postgresql-16 postgresql-16-postgis-3 gdal-bin
 systemctl enable --now postgresql
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$APP_USER'" | grep -q 1; then
   DB_PASS="$(openssl rand -base64 30 | tr -d '/+=')"
@@ -94,7 +109,7 @@ ln -sf /etc/nginx/sites-available/loentrego /etc/nginx/sites-enabled/loentrego
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 certbot --nginx -d "$DOMINIO" -m "$CORREO" --agree-tos --redirect --non-interactive || \
-  echo "Certbot falló: revisa que el DNS de $DOMINIO apunte a este servidor y vuelve a correr el script."
+  echo "Certbot falló: revisa en Namecheap (Advanced DNS) que el registro A de $DOMINIO apunte a este VPS y vuelve a correr el script."
 
 paso "Respaldos: rclone + copia diaria de la base a las 3:15 a. m."
 apt-get install -y -q rclone

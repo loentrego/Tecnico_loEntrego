@@ -153,67 +153,153 @@
   });
   filtrar('#rel-filtro', '#rel-tabla tbody tr');
 
-  // ---------- API ----------
-  const API = [
-    ['Públicas', [
-      ['GET', '/api/salud', 'Todos', 'Responde si la API y la base están arriba (para el monitoreo).', '—'],
-      ['POST', '/api/publico/solicitudes', 'Web', 'Formulario "Únete": guarda la solicitud del comercio.', 'solicitudes_comercio'],
-      ['POST', '/api/publico/contacto', 'Web', 'Formulario de contacto.', 'mensajes_contacto'],
-      ['POST', '/api/publico/postulaciones', 'Web', 'Postulación de un repartidor.', 'postulaciones_repartidor'],
-      ['GET', '/api/publico/canales', 'Mantenimiento', 'Estado de cada canal y hora estimada de regreso.', 'estado_canales, mantenimientos'],
-      ['POST', '/api/publico/calificar/:token', 'Cliente final', 'Califica la entrega desde el enlace de WhatsApp.', 'calificaciones'],
-    ]],
-    ['Sesión', [
-      ['POST', '/api/login', 'Todos', 'Inicia sesión (ya conectado en la AppWeb). Devuelve tokens y rol.', 'usuarios, sesiones, intentos_ingreso'],
-      ['POST', '/api/refrescar', 'Todos', 'Cambia el token de refresco por uno nuevo.', 'sesiones'],
-      ['POST', '/api/salir', 'Todos', 'Cierra la sesión del dispositivo.', 'sesiones'],
-      ['GET', '/api/yo', 'Todos', 'Datos del usuario y de su comercio o perfil de repartidor.', 'usuarios, comercios, repartidores'],
-      ['POST', '/api/registro/:token', 'Invitado', 'Crea la cuenta con un enlace de registro del panel.', 'enlaces_registro, usuarios'],
-      ['POST', '/api/push', 'AppWeb', 'Guarda la suscripción de notificaciones del dispositivo.', 'suscripciones_push'],
-    ]],
-    ['Comercio', [
-      ['GET', '/api/pedidos', 'Comercio', 'Sus pedidos, con filtros por estado y fecha.', 'pedidos'],
-      ['POST', '/api/pedidos', 'Comercio', 'Nuevo pedido: geocodifica la dirección; la base pone tarifa, zona y repartidor.', 'pedidos'],
-      ['GET', '/api/pedidos/:codigo', 'Comercio', 'Detalle con historial, evidencias y calificación.', 'pedidos, pedido_eventos, evidencias'],
-      ['POST', '/api/pedidos/:id/cancelar', 'Comercio', 'Cancela un pedido que aún no se recoge.', 'pedidos'],
-      ['POST', '/api/pedidos/:id/reintentar', 'Comercio', 'Crea un nuevo intento de un pedido no entregado.', 'pedidos'],
-      ['GET', '/api/tarifas', 'Comercio', 'Tarifas vigentes por municipio.', 'tarifas'],
-      ['GET', '/api/liquidaciones', 'Comercio', 'Sus liquidaciones y el detalle por pedido.', 'liquidaciones, liquidacion_pedidos'],
-    ]],
-    ['Repartidor', [
-      ['GET', '/api/ruta', 'Repartidor', 'Sus pedidos del día, en orden.', 'pedidos'],
-      ['POST', '/api/pedidos/:id/estado', 'Repartidor', 'Avanza el estado (deslizar para confirmar) o marca no entregado con motivo.', 'pedidos, pedido_eventos'],
-      ['POST', '/api/pedidos/:id/evidencias', 'Repartidor', 'Sube foto o firma de la entrega.', 'archivos, evidencias'],
-      ['POST', '/api/jornada', 'Repartidor', 'Inicia o termina la jornada.', 'jornadas'],
-      ['GET', '/api/caja', 'Repartidor', 'Cobrado, pendiente por cobrar y cierre del día.', 'pedidos, cierres_caja'],
-    ]],
-    ['Admin', [
-      ['GET', '/api/admin/resumen?periodo=', 'Admin', 'Cifras del Resumen: hoy, 1 mes, 6 meses, 1 año o histórico.', 'v_resumen_diario, metricas_redes'],
-      ['GET', '/api/admin/buscar?q=', 'Admin', 'Búsqueda global: pedidos, comercios, repartidores.', 'pedidos, comercios, usuarios'],
-      ['GET', '/api/admin/pedidos', 'Admin', 'Todos los pedidos con filtros; reasignar repartidor.', 'pedidos, asignaciones'],
-      ['GET', '/api/admin/comercios', 'Admin', 'Comercios con sus estadísticas; crear y editar.', 'v_comercios, comercios'],
-      ['GET', '/api/admin/repartidores', 'Admin', 'Repartidores con estadísticas, documentos y vencimientos.', 'v_repartidores, documentos_repartidor'],
-      ['GET', '/api/admin/zonas', 'Admin', 'Zonas de reparto como GeoJSON (las que dibuja el mapa).', 'zonas_reparto, zona_repartidores'],
-      ['PUT', '/api/admin/zonas/:id', 'Admin', 'Crea o edita una zona; recorta las vecinas.', 'zonas_reparto, auditoria'],
-      ['GET', '/api/admin/mapa/demanda', 'Admin', 'Pedidos por localidad para la capa Calor.', 'v_demanda_localidad'],
-      ['POST', '/api/admin/enlaces', 'Admin', 'Genera un enlace de registro para comercio o repartidor.', 'enlaces_registro'],
-      ['POST', '/api/admin/intercambios', 'Admin', 'Pasa una zona o un pedido de un repartidor a otro.', 'intercambios, asignaciones'],
-      ['POST', '/api/admin/cierres', 'Admin', 'Registra lo que entregó el repartidor al cerrar caja.', 'cierres_caja'],
-      ['POST', '/api/admin/liquidaciones', 'Admin', 'Arma, aprueba y marca como pagada una liquidación.', 'liquidaciones, liquidacion_pedidos'],
-      ['GET', '/api/admin/solicitudes', 'Admin', 'Solicitudes de la web y su seguimiento.', 'solicitudes_comercio, mensajes_contacto'],
-      ['PUT', '/api/admin/canales', 'Admin', 'Cambia lo que muestra la página de mantenimiento.', 'estado_canales, mantenimientos'],
-    ]],
-    ['Webhooks', [
-      ['POST', '/webhooks/whatsapp', 'Meta', 'Estado de los mensajes enviados (entregado, leído, fallido).', 'notificaciones'],
-    ]],
-  ];
-  $('#api-tabla tbody').innerHTML = API.map(([g, filas]) => `
-    <tr class="grupo-fila"><th colspan="5" class="grupo">${g}</th></tr>
-    ${filas.map(([m, r, q, d, t]) => `<tr data-busca="${esc(`${g} ${r} ${q} ${d} ${t}`)}">
-      <td><span class="metodo m-${m.toLowerCase()}">${m}</span></td><td><code>${esc(r)}</code></td><td>${q}</td><td>${d}</td><td class="t-tablas">${t}</td></tr>`).join('')}`).join('');
+  // ---------- API (sale de datos/entradas.js: una sola fuente) ----------
+  const ES = window.ENTRADAS || { FRONTS: [], EXTRA: [], TIPOS: {} };
+  const rutasApi = new Map();
+  ES.FRONTS.forEach((f) => f.pantallas.forEach((pa) => pa.llamadas.forEach((l) => {
+    const k = l.metodo + ' ' + l.ruta.split('?')[0];
+    const r = rutasApi.get(k) || { m: l.metodo, ruta: l.ruta, quien: new Set(), que: l.nombre, tablas: l.tablas, id: l.id, grupo: f.nombre };
+    r.quien.add(f.nombre); rutasApi.set(k, r);
+  })));
+  // el login también lo usa el panel admin
+  const kl = 'POST /api/login'; if (rutasApi.has(kl)) rutasApi.get(kl).quien.add('Panel admin');
+  const gruposApi = {};
+  rutasApi.forEach((r) => (gruposApi[r.grupo] ||= []).push(r));
+  gruposApi['Sistema e integraciones'] = ES.EXTRA.map(([m, ruta, q, que, t]) => ({ m, ruta, quien: new Set([q]), que, tablas: t }));
+  $('#api-tabla tbody').innerHTML = Object.entries(gruposApi).map(([g, filas]) => `
+    <tr class="grupo-fila"><th colspan="5" class="grupo">${esc(g)}</th></tr>
+    ${filas.map((r) => `<tr data-busca="${esc(`${g} ${r.ruta} ${[...r.quien].join(' ')} ${r.que} ${r.tablas}`)}">
+      <td><span class="metodo m-${r.m.toLowerCase()}">${r.m}</span></td>
+      <td>${r.id ? `<a href="#ll-${r.id}"><code>${esc(r.ruta)}</code></a>` : `<code>${esc(r.ruta)}</code>`}</td>
+      <td>${[...r.quien].join(', ')}</td><td>${esc(r.que)}</td><td class="t-tablas">${esc(r.tablas)}</td></tr>`).join('')}`).join('');
   $('#api-filtro').addEventListener('input', (e) => {
     const q = e.target.value.trim().toLowerCase();
     document.querySelectorAll('#api-tabla tbody tr:not(.grupo-fila)').forEach((r) => (r.hidden = q && !r.dataset.busca.toLowerCase().includes(q)));
+  });
+
+  // ---------- Entradas y salidas ----------
+  const T = ES.TIPOS;
+  const defecto = { texto: '', entero: 0, decimal: 0, booleano: false, 'fecha-hora': '2026-11-23T09:00:00-05:00', fecha: '2026-11-23', uuid: 'uuid', lista: [], objeto: {} };
+  // Arma un JSON de ejemplo con la lista de campos (soporta "a.b", "a[]" y tipos compartidos)
+  function construir(campos, prof = 0) {
+    const raiz = {};
+    for (const [nombre, tipo, req, ej] of campos) {
+      const partes = nombre.split('.');
+      let o = raiz;
+      partes.forEach((seg, k) => {
+        const lista = seg.endsWith('[]'), key = seg.replace('[]', ''), ultimo = k === partes.length - 1;
+        if (!ultimo) {
+          if (lista) { o[key] ||= []; if (!o[key].length || typeof o[key][0] !== 'object') o[key] = [{}]; o = o[key][0]; }
+          else { o[key] = (o[key] && typeof o[key] === 'object') ? o[key] : {}; o = o[key]; }
+          return;
+        }
+        let v;
+        if (T[tipo] && prof < 3) v = construir(T[tipo].campos, prof + 1);
+        else if (ej !== null && ej !== undefined) v = ej;
+        else if (/\|/.test(tipo)) v = `<${tipo}>`;
+        else v = req ? (defecto[tipo] ?? null) : null;
+        o[key] = lista ? (T[tipo] ? [v] : (Array.isArray(v) ? v : [v])) : v;
+      });
+    }
+    return raiz;
+  }
+  const jsonBonito = (o) => esc(JSON.stringify(o, null, 2))
+    .replace(/&quot;([^&]+?)&quot;:/g, '<span class="j-k">"$1"</span>:')
+    .replace(/: &quot;(.*?)&quot;/g, ': <span class="j-s">"$1"</span>')
+    .replace(/: (-?\d[\d.]*)/g, ': <span class="j-n">$1</span>')
+    .replace(/: (true|false|null)/g, ': <span class="j-b">$1</span>');
+  const tipoLink = (t) => T[t] ? `<a href="#tipo-${t}" class="t-ref">${t}</a>` : esc(t);
+  const tablaCampos = (campos) => `<table class="campos"><thead><tr><th>Campo</th><th>Tipo</th><th></th><th>Nota</th></tr></thead><tbody>${
+    campos.map(([n, t, req, , nota]) => `<tr><td><code>${esc(n)}</code></td><td>${tipoLink(t)}</td><td>${req ? '<i class="k nn" title="Obligatorio">•</i>' : '<small>opc.</small>'}</td><td>${esc(nota || '')}</td></tr>`).join('')}</tbody></table>`;
+  const cuerpo = (def, titulo) => {
+    if (!def) return `<div class="io-vacio"><b>${titulo}</b><p>Sin cuerpo.</p></div>`;
+    const campos = typeof def === 'string' ? T[def].campos : def;
+    const nombre = typeof def === 'string' ? ` · estructura ${tipoLink(def)}` : '';
+    return `<div class="io"><b>${titulo}${nombre}</b><pre class="json">${jsonBonito(construir(campos))}</pre>
+      <details class="io-campos"><summary>Ver campo por campo (${campos.length})</summary>${tablaCampos(campos)}</details></div>`;
+  };
+  const resumenEnvio = (def) => !def ? 'sin cuerpo' : typeof def === 'string' ? def : def.map((c) => c[0].split('.')[0].replace('[]', '')).filter((v, i, a) => a.indexOf(v) === i).join(', ');
+  const todasLlamadas = {};
+  ES.FRONTS.forEach((f) => f.pantallas.forEach((pa) => pa.llamadas.forEach((l) => (todasLlamadas[l.id] = l))));
+  const destino = (id) => id === 'local' ? '<span class="dest d-local">En el navegador</span>'
+    : id === 'externo' ? '<span class="dest d-ext">Abre otra app</span>'
+    : todasLlamadas[id] ? `<a class="dest d-api" href="#ll-${id}"><span class="metodo m-${todasLlamadas[id].metodo.toLowerCase()}">${todasLlamadas[id].metodo}</span>${esc(todasLlamadas[id].nombre)}</a>` : esc(id);
+
+  // Diagrama de secuencia: Pantalla → API → Base de datos y de vuelta
+  const secuencia = (pa) => !pa.llamadas.length ? '' : `
+    <div class="seq" role="img" aria-label="Diagrama de secuencia de ${esc(pa.nombre)}">
+      <div class="seq-h">Pantalla</div><div class="seq-h">API</div><div class="seq-h">Base de datos</div>
+      ${pa.llamadas.map((l, i) => `
+        <div class="seq-n" style="grid-row: span 4">${i + 1}</div>
+        <div class="seq-m der" style="grid-column: 2 / 4"><span><span class="metodo m-${l.metodo.toLowerCase()}">${l.metodo}</span> <code>${esc(l.ruta)}</code></span><small>envía: ${esc(resumenEnvio(l.envia))}</small></div>
+        <div class="seq-m der db" style="grid-column: 3 / 5"><span>consulta / guarda</span><small>${esc(l.tablas)}</small></div>
+        <div class="seq-m izq db" style="grid-column: 3 / 5"><span>filas</span></div>
+        <div class="seq-m izq ok" style="grid-column: 2 / 4"><span>200 · ${esc(typeof l.recibe === 'string' ? l.recibe : resumenEnvio(l.recibe))}</span>${l.errores?.length ? `<small>errores: ${l.errores.map((e) => e[0]).join(', ')}</small>` : ''}</div>`).join('')}
+    </div>`;
+
+  const nCtrl = ES.FRONTS.reduce((s, f) => s + f.pantallas.reduce((a, p) => a + p.controles.length, 0), 0);
+  const nLl = Object.keys(todasLlamadas).length;
+  $('#io-cifras').innerHTML = [[ES.FRONTS.length, 'frontends'], [ES.FRONTS.reduce((s, f) => s + f.pantallas.length, 0), 'pantallas'], [nCtrl, 'campos y botones'], [nLl, 'llamadas a la API'], [Object.keys(T).length, 'estructuras']]
+    .map(([n, l]) => `<span><b>${n}</b>${l}</span>`).join('');
+
+  // Diagrama general: frontends → API → base
+  $('#io-mapa').innerHTML = `
+    <div class="iom-col">${ES.FRONTS.map((f) => `<a class="iom-f" href="#fe-${f.id}" style="--c:${f.color}"><b>${f.nombre}</b><small>${f.repo}</small><span>${f.pantallas.reduce((a, p) => a + p.controles.length, 0)} controles · ${f.pantallas.reduce((a, p) => a + p.llamadas.length, 0)} llamadas</span></a>`).join('')}</div>
+    <div class="iom-flechas" aria-hidden="true"><i>JSON →</i><i>← JSON</i></div>
+    <div class="iom-api"><b>API</b><small>app.loentrego.com/api</small>
+      <ul><li><code>/api/publico/*</code> sin sesión</li><li><code>/api/login</code> · <code>/api/yo</code></li><li><code>/api/pedidos</code> · <code>/api/ruta</code></li><li><code>/api/admin/*</code> solo admin</li></ul></div>
+    <div class="iom-flechas" aria-hidden="true"><i>SQL →</i><i>← filas</i></div>
+    <div class="iom-db"><b>PostgreSQL</b><small>+ PostGIS</small><span>${E.tablas.length} tablas · ${E.vistas.length} vistas</span></div>`;
+
+  $('#io-lista').innerHTML = ES.FRONTS.map((f) => `
+    <div class="fe" id="fe-${f.id}" style="--c:${f.color}">
+      <h3 class="fe-t"><span></span>${f.nombre}<small>${f.repo} · ${f.pantallas.length} pantallas</small></h3>
+      <p class="fe-d">${esc(f.txt)}</p>
+      ${f.pantallas.map((pa) => `
+        <details class="pant" id="pa-${pa.id}">
+          <summary><b>${esc(pa.nombre)}</b><small>${esc(pa.archivo)}</small><span class="pant-c">${pa.controles.length} controles · ${pa.llamadas.length} llamadas</span></summary>
+          <div class="pant-in">
+            ${pa.nota ? `<p class="pant-nota">${esc(pa.nota)}</p>` : ''}
+            ${secuencia(pa)}
+            <h4 class="h4">Campos y botones</h4>
+            <div class="tabla-wrap"><table class="tabla ctrl"><thead><tr><th>Control</th><th>Etiqueta</th><th>Campo</th><th>Regla</th><th>Va a</th></tr></thead><tbody>
+              ${pa.controles.map(([t, e, c, r, d]) => `<tr data-busca="${esc(`${e} ${c}`)}"><td><span class="ctl">${esc(t)}</span></td><td>${esc(e)}</td><td>${c === '—' ? '<small>—</small>' : `<code>${esc(c)}</code>`}</td><td>${esc(r)}</td><td>${destino(d)}</td></tr>`).join('')}
+            </tbody></table></div>
+            ${pa.llamadas.map((l) => `
+              <article class="ll" id="ll-${l.id}">
+                <header><span class="metodo m-${l.metodo.toLowerCase()}">${l.metodo}</span><code>${esc(l.ruta)}</code><b>${esc(l.nombre)}</b><span class="ll-auth">${esc(l.auth)}</span></header>
+                <p class="ll-cuando">${esc(l.cuando)}</p>
+                <div class="io-grid">${cuerpo(l.envia, 'Envía')}${cuerpo(l.recibe, 'Recibe')}</div>
+                <p class="ll-pie"><span>Tablas: <code>${esc(l.tablas)}</code></span>${l.errores?.length ? `<span>Errores: ${l.errores.map(([c, d]) => `<b>${c}</b> ${esc(d)}`).join(' · ')} · forma <a href="#tipo-Error" class="t-ref">Error</a></span>` : ''}</p>
+              </article>`).join('')}
+          </div>
+        </details>`).join('')}
+    </div>`).join('');
+
+  $('#io-tipos').innerHTML = Object.entries(T).map(([n, t]) => `
+    <article class="tipo-card" id="tipo-${n}"><header><code>${n}</code></header><p>${esc(t.desc)}</p>
+      <pre class="json">${jsonBonito(construir(t.campos))}</pre>
+      <details class="io-campos"><summary>Ver campo por campo (${t.campos.length})</summary>${tablaCampos(t.campos)}</details></article>`).join('');
+
+  // Abrir todo / cerrar todo, y abrir la pantalla si se llega por enlace
+  $('#io-abrir').addEventListener('click', (e) => {
+    const abrir = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    document.querySelectorAll('.pant').forEach((d) => (d.open = abrir));
+    e.currentTarget.setAttribute('aria-pressed', String(abrir));
+    e.currentTarget.textContent = abrir ? 'Cerrar todas' : 'Abrir todas';
+  });
+  const abrirDestino = () => { const el = location.hash ? document.querySelector(location.hash) : null; const d = el?.closest('details.pant'); if (d) { d.open = true; el.scrollIntoView(); } };
+  window.addEventListener('hashchange', abrirDestino); abrirDestino();
+  $('#io-filtro').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('.pant').forEach((d) => {
+      const filas = [...d.querySelectorAll('.ctrl tbody tr')];
+      let alguna = false;
+      filas.forEach((r) => { const m = !q || r.dataset.busca.toLowerCase().includes(q); r.hidden = !m; alguna ||= m && !!q; });
+      const enPant = q && d.textContent.toLowerCase().includes(q);
+      d.hidden = q && !enPant;
+      if (q) d.open = alguna || enPant;
+    });
   });
 
   // ---------- Índice: resalta la sección que se está leyendo ----------

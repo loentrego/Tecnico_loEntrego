@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="styles.css?v=4">
 <link rel="icon" href="assets/icon-192.png">
 </head>
 <body>
@@ -35,6 +35,7 @@
       <li><a href="#vps">Programas del VPS</a></li>
       <li><a href="#servicios">Servicios externos</a></li>
       <li><a href="#api">API</a></li>
+      <li><a href="#entradas">Entradas y salidas</a></li>
       <li><a href="#base">Base de datos</a></li>
       <li><a href="#tablas">Tablas</a></li>
       <li><a href="#relaciones">Relaciones</a></li>
@@ -49,9 +50,9 @@
     <section class="sec" id="arquitectura" aria-labelledby="t-arq">
       <p class="num">01</p>
       <h2 id="t-arq">Arquitectura</h2>
-      <p class="lead">Los frontends son páginas estáticas en GitHub Pages. Todo lo que guarda o consulta datos pasa por <b>una sola API</b> en el VPS (<code>app.loentrego.com</code>), y la API es la única que habla con la base de datos.</p>
+      <p class="lead">Los frontends son páginas estáticas en GitHub Pages; el dominio está en Namecheap y el servidor es un VPS de Bluehost. Todo lo que guarda o consulta datos pasa por <b>una sola API</b> en el VPS (<code>app.loentrego.com</code>), y la API es la única que habla con la base de datos.</p>
 
-      <div class="arq" role="img" aria-label="Diagrama: usuarios, frontends en GitHub Pages, Cloudflare, VPS con Nginx, API, PostgreSQL y Redis, y servicios externos">
+      <div class="arq" role="img" aria-label="Diagrama: usuarios, frontends en GitHub Pages, DNS en Namecheap, VPS de Bluehost con Nginx, API, PostgreSQL y Redis, y servicios externos">
         <div class="arq-col">
           <p class="arq-t">Quién entra</p>
           <div class="arq-box">Clientes y comercios<small>Web pública</small></div>
@@ -68,8 +69,8 @@
         </div>
         <div class="arq-arrow" aria-hidden="true"><span>HTTPS<br>JSON</span></div>
         <div class="arq-col arq-vps">
-          <p class="arq-t">VPS · Ubuntu 24.04</p>
-          <div class="arq-box is-edge">Cloudflare DNS → Nginx<small>HTTPS · límites · proxy</small></div>
+          <p class="arq-t">VPS Bluehost · Ubuntu</p>
+          <div class="arq-box is-edge">Namecheap DNS → Nginx<small>HTTPS · límites · proxy</small></div>
           <div class="arq-box is-api">API Node.js<small>systemd · puerto 3000</small></div>
           <div class="arq-pair">
             <div class="arq-box is-db">PostgreSQL 16<small>+ PostGIS</small></div>
@@ -99,12 +100,13 @@
       <p class="num">02</p>
       <h2 id="t-vps">Programas del VPS</h2>
       <p class="lead">Todo se instala con un solo script: <code>vps/instalar.sh</code>. Es idempotente, así que se puede volver a correr sin romper nada.</p>
+      <p class="aviso"><b>En Bluehost</b>: al crear o reinstalar el VPS, elige <b>Ubuntu</b> sin panel (self-managed). Si viene con AlmaLinux o cPanel, se reinstala desde el panel de Bluehost antes de correr el script. El script instala PostgreSQL 16 desde el repositorio oficial de PostgreSQL, así que funciona igual en Ubuntu 22.04 y 24.04.</p>
 
       <div class="spec">
-        <div><small>Tamaño recomendado</small><b>2 vCPU · 4 GB RAM · 80 GB SSD</b></div>
-        <div><small>Sistema</small><b>Ubuntu Server 24.04 LTS</b></div>
-        <div><small>Ubicación</small><b>Lo más cerca a Colombia (EE. UU. Este o Brasil)</b></div>
-        <div><small>Proveedores de ejemplo</small><b>Hetzner · DigitalOcean · Vultr · AWS Lightsail</b></div>
+        <div><small>Servidor (VPS)</small><b>Bluehost</b></div>
+        <div><small>Plan</small><b>2 vCPU · 4 GB RAM · 100 GB</b></div>
+        <div><small>Sistema</small><b>Ubuntu 24.04 LTS (o 22.04), sin cPanel</b></div>
+        <div><small>Dominio y DNS</small><b>Namecheap</b></div>
       </div>
 
       <h3 class="h3">Qué se instala y para qué</h3>
@@ -139,7 +141,8 @@
       </div>
 
       <h3 class="h3">Instalar</h3>
-      <pre class="code"><code><span class="c"># 1. Apuntar el DNS de app.loentrego.com a la IP del VPS (registro A en Cloudflare)</span>
+      <pre class="code"><code><span class="c"># 1. Namecheap → Domain List → loentrego.com → Advanced DNS:</span>
+<span class="c">#    registro A, host "app", valor = IP del VPS de Bluehost, TTL automático</span>
 <span class="c"># 2. Copiar la carpeta vps/ al servidor y correr como root:</span>
 DOMINIO=app.loentrego.com CORREO=contacto@loentrego.com bash vps/instalar.sh
 
@@ -161,7 +164,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
       <h3 class="h3">Imprescindibles</h3>
       <div class="grid-3">
-        <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Cloudflare</h4><p>DNS de <code>loentrego.com</code>, proxy con protección contra ataques y caché de los estáticos.</p><small>Variable: —</small></article>
+        <article class="svc"><span class="svc-tag">Servidor</span><h4>Bluehost (VPS)</h4><p>2 vCPU, 4 GB de RAM y 100 GB. Aquí corren Nginx, la API, PostgreSQL y Redis.</p><small>Acceso: SSH con llave</small></article>
+        <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Namecheap</h4><p>Dominio <code>loentrego.com</code> y sus registros: <code>app</code> (A → VPS), <code>www</code> y la raíz (GitHub Pages), y MX, SPF, DKIM y DMARC del correo.</p><small>Variable: —</small></article>
         <article class="svc"><span class="svc-tag">Código y frontends</span><h4>GitHub + GitHub Pages</h4><p>Repositorios, publicación de las 4 páginas y despliegue de la API con GitHub Actions por SSH.</p><small>Variable: llave SSH de despliegue</small></article>
         <article class="svc"><span class="svc-tag">Notificaciones</span><h4>WhatsApp Business Cloud API (Meta)</h4><p>Avisos al cliente final: "va en camino", "entregado", "no pudimos entregar". Plantillas aprobadas por Meta.</p><small><code>WA_TOKEN</code> · <code>WA_PHONE_ID</code> · <code>WA_VERIFY</code></small></article>
         <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en un punto para asignar zona y localidad. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
@@ -182,6 +186,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <h3 class="h3">Opcionales (cuando crezca)</h3>
       <div class="grid-3">
         <article class="svc is-opt"><span class="svc-tag">Pagos en línea</span><h4>Wompi</h4><p>Links de pago y PSE para que el cliente pague antes de la entrega en vez de contraentrega.</p></article>
+        <article class="svc is-opt"><span class="svc-tag">Protección</span><h4>Cloudflare (plan gratis)</h4><p>Si hay ataques o mucho tráfico: se cambian los nameservers en Namecheap a Cloudflare y queda delante del VPS.</p></article>
         <article class="svc is-opt"><span class="svc-tag">SMS</span><h4>Twilio o Hablame</h4><p>Respaldo si el cliente no tiene WhatsApp.</p></article>
         <article class="svc is-opt"><span class="svc-tag">Facturación</span><h4>Proveedor de factura electrónica DIAN</h4><p>Facturas de las tarifas de envío a los comercios.</p></article>
       </div>
@@ -202,9 +207,47 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       </div>
     </section>
 
-    <!-- ============ 05 BASE DE DATOS ============ -->
-    <section class="sec" id="base" aria-labelledby="t-base">
+
+    <!-- ============ 05 ENTRADAS Y SALIDAS ============ -->
+    <section class="sec" id="entradas" aria-labelledby="t-io">
       <p class="num">05</p>
+      <h2 id="t-io">Entradas y salidas</h2>
+      <p class="lead">Todos los campos y botones de los cuatro frontends, hasta el más pequeño. Para cada uno: <b>qué dato toma, qué regla cumple y a qué llamada de la API va</b>. Cada llamada trae el JSON exacto que se envía y el que se recibe.</p>
+      <div class="cover-stats io-cifras" id="io-cifras"></div>
+
+      <h3 class="h3">Diagrama general</h3>
+      <div class="io-mapa" id="io-mapa"></div>
+
+      <h3 class="h3">Cómo leer cada pantalla</h3>
+      <div class="grid-3">
+        <article class="trait"><b>Diagrama de secuencia</b><p>De izquierda a derecha: la pantalla pide a la API, la API consulta la base y la respuesta vuelve. Un número por llamada.</p></article>
+        <article class="trait"><b>Campos y botones</b><p>Cada control con su campo JSON y su regla. <span class="dest d-local">En el navegador</span> no llama a la API; <span class="dest d-ext">Abre otra app</span> abre WhatsApp, el teléfono, el correo o Maps.</p></article>
+        <article class="trait"><b>Envía y recibe</b><p>El JSON de ejemplo y, debajo, campo por campo con su tipo. Las estructuras que se repiten están al final.</p></article>
+      </div>
+
+      <div class="io-barra">
+        <div class="filtro"><input type="search" id="io-filtro" placeholder="Buscar un campo o botón (p. ej. celular, cobro, Generar enlace)" aria-label="Buscar campo o botón"></div>
+        <button type="button" class="b-ghost" id="io-abrir" aria-pressed="false">Abrir todas</button>
+      </div>
+      <div id="io-lista"></div>
+
+      <h3 class="h3">Reglas comunes</h3>
+      <ul class="rules">
+        <li><b>Formato</b>: todo va y vuelve en JSON (<code>Content-Type: application/json</code>), salvo las fotos (multipart) y la guía (PDF).</li>
+        <li><b>Sesión</b>: las rutas con "Token" llevan <code>Authorization: Bearer &lt;token&gt;</code>. Si la API responde 401, el frontend pide uno nuevo con <code>POST /api/refrescar</code> y repite la llamada.</li>
+        <li><b>Dinero</b> en pesos enteros (<code>45000</code>); el frontend lo muestra como <code>$45.000</code>. <b>Celulares</b> solo dígitos (<code>3001234567</code>); se muestran <code>300 123 4567</code>.</li>
+        <li><b>Fechas</b> en ISO 8601 con zona de Colombia (<code>2026-11-23T09:40:00-05:00</code>).</li>
+        <li><b>Errores</b> siempre con la misma forma (<a href="#tipo-Error" class="t-ref">Error</a>); con 422 llega <code>campos</code> para marcar cada campo en rojo.</li>
+        <li><b>Lo que hoy es local</b> (zonas en localStorage, territorio.json, ESTADO de mantenimiento, usuarios demo) pasa a estas llamadas cuando exista el backend, sin cambiar las pantallas.</li>
+      </ul>
+
+      <h3 class="h3">Estructuras compartidas</h3>
+      <div class="tipos" id="io-tipos"></div>
+    </section>
+
+    <!-- ============ 06 BASE DE DATOS ============ -->
+    <section class="sec" id="base" aria-labelledby="t-base">
+      <p class="num">06</p>
       <h2 id="t-base">Base de datos</h2>
       <p class="lead">PostgreSQL 16 con PostGIS. Un solo esquema guarda <b>todo el ecosistema</b>, organizado en 10 áreas. El archivo completo, probado en una base real, está en <code>db/esquema.sql</code>.</p>
 
@@ -245,7 +288,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
     <!-- ============ 06 TABLAS ============ -->
     <section class="sec" id="tablas" aria-labelledby="t-tablas">
-      <p class="num">06</p>
+      <p class="num">07</p>
       <h2 id="t-tablas">Tablas</h2>
       <p class="lead">Todas las tablas con sus columnas, tal cual están en la base. Las relaciones son enlaces: toca una para ir a la tabla a la que apunta.</p>
       <div class="leyenda">
@@ -263,7 +306,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
     <!-- ============ 07 RELACIONES ============ -->
     <section class="sec" id="relaciones" aria-labelledby="t-rel">
-      <p class="num">07</p>
+      <p class="num">08</p>
       <h2 id="t-rel">Relaciones</h2>
       <p class="lead">El pedido es el centro: casi todo se conecta con él, con el comercio que lo crea o con el repartidor que lo lleva.</p>
 
@@ -293,7 +336,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
     <!-- ============ 08 SEGURIDAD ============ -->
     <section class="sec" id="seguridad" aria-labelledby="t-seg">
-      <p class="num">08</p>
+      <p class="num">09</p>
       <h2 id="t-seg">Respaldo y seguridad</h2>
       <div class="grid-2">
         <article class="rule-card"><h4>Respaldos</h4><p>Copia completa de la base cada día a las 3:15 a. m. (<code>vps/respaldo.sh</code>). Se guardan 14 días en el servidor y una copia cifrada en R2/B2. <b>Probar una restauración una vez al mes.</b></p></article>
@@ -307,7 +350,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
     <!-- ============ 09 ARCHIVOS ============ -->
     <section class="sec" id="archivos" aria-labelledby="t-arch">
-      <p class="num">09</p>
+      <p class="num">10</p>
       <h2 id="t-arch">Archivos</h2>
       <div class="downloads">
         <a class="dl" href="db/esquema.sql" download><span class="dl-ext">SQL</span><b>esquema.sql</b><small>Todas las tablas, tipos, funciones, reglas y vistas</small></a>
@@ -328,6 +371,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 </footer>
 
 <script src="datos/esquema.js?v=1"></script>
-<script src="script.js?v=1"></script>
+<script src="datos/entradas.js?v=1"></script>
+<script src="script.js?v=4"></script>
 </body>
 </html>
