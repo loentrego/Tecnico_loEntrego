@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#3422A8">
+<meta name="robots" content="noindex">
+<title>Documentación técnica · LoEntrego</title>
+<meta name="description" content="Documentación técnica de LoEntrego: servidor, programas, servicios externos, API y la estructura completa de la base de datos PostgreSQL.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=1">
+<link rel="icon" href="assets/icon-192.png">
+</head>
+<body>
+
+<!-- ============ PORTADA ============ -->
+<header class="cover" id="inicio">
+  <img class="cover-logo" src="assets/loentrego-logo-blanco.png" alt="LoEntrego — Logística de última milla" width="1383" height="374">
+  <div class="cover-inner">
+    <p class="kicker">Documentación técnica · 2026</p>
+    <h1>Así funciona<br><span>por dentro.</span></h1>
+    <p class="cover-sub">El servidor, los programas que corren en él, los servicios externos, la API y la base de datos que guarda y organiza todo el ecosistema: la web, la AppWeb de comercios y repartidores, el panel de administración y la página de mantenimiento.</p>
+    <div class="cover-stats" id="cover-stats"></div>
+  </div>
+  <div class="cover-puntos" aria-hidden="true"></div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Contenido">
+    <p class="toc-title">Contenido</p>
+    <ol>
+      <li><a href="#arquitectura">Arquitectura</a></li>
+      <li><a href="#vps">Programas del VPS</a></li>
+      <li><a href="#servicios">Servicios externos</a></li>
+      <li><a href="#api">API</a></li>
+      <li><a href="#base">Base de datos</a></li>
+      <li><a href="#tablas">Tablas</a></li>
+      <li><a href="#relaciones">Relaciones</a></li>
+      <li><a href="#seguridad">Respaldo y seguridad</a></li>
+      <li><a href="#archivos">Archivos</a></li>
+    </ol>
+  </nav>
+
+  <main class="content">
+
+    <!-- ============ 01 ARQUITECTURA ============ -->
+    <section class="sec" id="arquitectura" aria-labelledby="t-arq">
+      <p class="num">01</p>
+      <h2 id="t-arq">Arquitectura</h2>
+      <p class="lead">Los frontends son páginas estáticas en GitHub Pages. Todo lo que guarda o consulta datos pasa por <b>una sola API</b> en el VPS (<code>app.loentrego.com</code>), y la API es la única que habla con la base de datos.</p>
+
+      <div class="arq" role="img" aria-label="Diagrama: usuarios, frontends en GitHub Pages, Cloudflare, VPS con Nginx, API, PostgreSQL y Redis, y servicios externos">
+        <div class="arq-col">
+          <p class="arq-t">Quién entra</p>
+          <div class="arq-box">Clientes y comercios<small>Web pública</small></div>
+          <div class="arq-box">Comercios y repartidores<small>AppWeb (PWA)</small></div>
+          <div class="arq-box">Equipo LoEntrego<small>Panel admin</small></div>
+        </div>
+        <div class="arq-arrow" aria-hidden="true"></div>
+        <div class="arq-col">
+          <p class="arq-t">GitHub Pages</p>
+          <div class="arq-box is-front">frontend_mainweb</div>
+          <div class="arq-box is-front">frontend_appweb</div>
+          <div class="arq-box is-front">frontend_admin</div>
+          <div class="arq-box is-front">frontend-maintenance</div>
+        </div>
+        <div class="arq-arrow" aria-hidden="true"><span>HTTPS<br>JSON</span></div>
+        <div class="arq-col arq-vps">
+          <p class="arq-t">VPS · Ubuntu 24.04</p>
+          <div class="arq-box is-edge">Cloudflare DNS → Nginx<small>HTTPS · límites · proxy</small></div>
+          <div class="arq-box is-api">API Node.js<small>systemd · puerto 3000</small></div>
+          <div class="arq-pair">
+            <div class="arq-box is-db">PostgreSQL 16<small>+ PostGIS</small></div>
+            <div class="arq-box is-db">Redis<small>colas</small></div>
+          </div>
+          <div class="arq-box is-tool">cron · rclone · certbot<small>respaldos y certificados</small></div>
+        </div>
+        <div class="arq-arrow" aria-hidden="true"></div>
+        <div class="arq-col">
+          <p class="arq-t">Servicios externos</p>
+          <div class="arq-box is-ext">WhatsApp Cloud API</div>
+          <div class="arq-box is-ext">Geocodificación</div>
+          <div class="arq-box is-ext">Almacenamiento de objetos</div>
+          <div class="arq-box is-ext">Correo · Google · Meta</div>
+        </div>
+      </div>
+
+      <div class="grid-3 mt">
+        <article class="trait"><b>Estático afuera</b><p>Los frontends no tienen servidor propio: se publican con un push a <code>main</code>. Sin costo y sin mantenimiento.</p></article>
+        <article class="trait"><b>Una sola puerta</b><p>Solo la API toca la base. Postgres y Redis escuchan en <code>localhost</code>; desde internet solo se ven los puertos 80 y 443.</p></article>
+        <article class="trait"><b>Reglas en la base</b><p>El flujo del pedido, la autoasignación por zona y el historial viven en Postgres. Ningún cliente se las puede saltar.</p></article>
+      </div>
+    </section>
+
+    <!-- ============ 02 VPS ============ -->
+    <section class="sec" id="vps" aria-labelledby="t-vps">
+      <p class="num">02</p>
+      <h2 id="t-vps">Programas del VPS</h2>
+      <p class="lead">Todo se instala con un solo script: <code>vps/instalar.sh</code>. Es idempotente, así que se puede volver a correr sin romper nada.</p>
+
+      <div class="spec">
+        <div><small>Tamaño recomendado</small><b>2 vCPU · 4 GB RAM · 80 GB SSD</b></div>
+        <div><small>Sistema</small><b>Ubuntu Server 24.04 LTS</b></div>
+        <div><small>Ubicación</small><b>Lo más cerca a Colombia (EE. UU. Este o Brasil)</b></div>
+        <div><small>Proveedores de ejemplo</small><b>Hetzner · DigitalOcean · Vultr · AWS Lightsail</b></div>
+      </div>
+
+      <h3 class="h3">Qué se instala y para qué</h3>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th>Programa</th><th>Versión</th><th>Para qué</th><th>Paquete</th></tr></thead>
+          <tbody>
+            <tr><th colspan="4" class="grupo">Base y seguridad</th></tr>
+            <tr><td><b>Ubuntu Server</b></td><td>24.04 LTS</td><td>Sistema operativo con soporte hasta 2029.</td><td><code>—</code></td></tr>
+            <tr><td><b>OpenSSH</b></td><td>9.x</td><td>Entrar al servidor. Solo con llave, sin clave ni root.</td><td><code>openssh-server</code></td></tr>
+            <tr><td><b>UFW</b></td><td>0.36</td><td>Firewall: abre solo SSH, 80 y 443.</td><td><code>ufw</code></td></tr>
+            <tr><td><b>fail2ban</b></td><td>1.x</td><td>Bloquea IPs que intentan adivinar claves por SSH.</td><td><code>fail2ban</code></td></tr>
+            <tr><td><b>unattended-upgrades</b></td><td>—</td><td>Parches de seguridad automáticos cada noche.</td><td><code>unattended-upgrades</code></td></tr>
+            <tr><th colspan="4" class="grupo">Web</th></tr>
+            <tr><td><b>Nginx</b></td><td>1.24</td><td>Recibe HTTPS, limita intentos de inicio de sesión y pasa las solicitudes a la API.</td><td><code>nginx</code></td></tr>
+            <tr><td><b>Certbot</b></td><td>2.x</td><td>Certificado HTTPS gratis de Let's Encrypt, con renovación automática.</td><td><code>certbot python3-certbot-nginx</code></td></tr>
+            <tr><th colspan="4" class="grupo">Datos</th></tr>
+            <tr><td><b>PostgreSQL</b></td><td>16</td><td>La base de datos de todo el ecosistema.</td><td><code>postgresql postgresql-contrib</code></td></tr>
+            <tr><td><b>PostGIS</b></td><td>3.4</td><td>Zonas de reparto, localidades y puntos de entrega. Asigna el pedido a la zona correcta.</td><td><code>postgresql-16-postgis-3</code></td></tr>
+            <tr><td><b>GDAL (ogr2ogr)</b></td><td>3.8</td><td>Importa zonas y localidades desde GeoJSON o shapefile.</td><td><code>gdal-bin</code></td></tr>
+            <tr><td><b>Redis</b></td><td>7</td><td>Cola de notificaciones (WhatsApp, push) y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
+            <tr><th colspan="4" class="grupo">Aplicación</th></tr>
+            <tr><td><b>Node.js</b></td><td>22 LTS</td><td>Corre la API.</td><td><code>nodejs</code> (NodeSource)</td></tr>
+            <tr><td><b>systemd</b></td><td>—</td><td>Arranca la API con el servidor y la reinicia si se cae (<code>loentrego-api.service</code>).</td><td>incluido</td></tr>
+            <tr><td><b>Git</b></td><td>2.x</td><td>Bajar el código de la API desde GitHub.</td><td><code>git</code></td></tr>
+            <tr><th colspan="4" class="grupo">Operación</th></tr>
+            <tr><td><b>rclone</b></td><td>1.6x</td><td>Sube los respaldos cifrados al almacenamiento de objetos.</td><td><code>rclone</code></td></tr>
+            <tr><td><b>cron</b></td><td>—</td><td>Respaldo diario de la base a las 3:15 a. m.</td><td>incluido</td></tr>
+            <tr><td><b>logrotate</b></td><td>—</td><td>Comprime y borra logs viejos para que el disco no se llene.</td><td>incluido</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="h3">Instalar</h3>
+      <pre class="code"><code><span class="c"># 1. Apuntar el DNS de app.loentrego.com a la IP del VPS (registro A en Cloudflare)</span>
+<span class="c"># 2. Copiar la carpeta vps/ al servidor y correr como root:</span>
+DOMINIO=app.loentrego.com CORREO=contacto@loentrego.com bash vps/instalar.sh
+
+<span class="c"># 3. Crear las tablas y los datos iniciales</span>
+source /srv/loentrego/.env
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/esquema.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/semilla.sql
+
+<span class="c"># 4. Comprobar</span>
+curl -I https://app.loentrego.com/api/salud</code></pre>
+      <p class="note">El script crea el usuario <code>loentrego</code> (sin acceso root), la base, una clave aleatoria en <code>/srv/loentrego/.env</code>, el servicio de la API, el sitio de Nginx con HTTPS y el respaldo diario.</p>
+    </section>
+
+    <!-- ============ 03 SERVICIOS ============ -->
+    <section class="sec" id="servicios" aria-labelledby="t-serv">
+      <p class="num">03</p>
+      <h2 id="t-serv">Servicios externos</h2>
+      <p class="lead">Lo que no corre en el VPS. Cada servicio tiene una llave que se guarda en <code>/srv/loentrego/.env</code>, nunca en el código.</p>
+
+      <h3 class="h3">Imprescindibles</h3>
+      <div class="grid-3">
+        <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Cloudflare</h4><p>DNS de <code>loentrego.com</code>, proxy con protección contra ataques y caché de los estáticos.</p><small>Variable: —</small></article>
+        <article class="svc"><span class="svc-tag">Código y frontends</span><h4>GitHub + GitHub Pages</h4><p>Repositorios, publicación de las 4 páginas y despliegue de la API con GitHub Actions por SSH.</p><small>Variable: llave SSH de despliegue</small></article>
+        <article class="svc"><span class="svc-tag">Notificaciones</span><h4>WhatsApp Business Cloud API (Meta)</h4><p>Avisos al cliente final: "va en camino", "entregado", "no pudimos entregar". Plantillas aprobadas por Meta.</p><small><code>WA_TOKEN</code> · <code>WA_PHONE_ID</code> · <code>WA_VERIFY</code></small></article>
+        <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en un punto para asignar zona y localidad. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
+        <article class="svc"><span class="svc-tag">Archivos</span><h4>Cloudflare R2 o Backblaze B2</h4><p>Fotos de evidencia, documentos de repartidores, soportes de pago y los respaldos cifrados de la base.</p><small><code>S3_ENDPOINT</code> · <code>S3_KEY</code> · <code>S3_SECRET</code></small></article>
+        <article class="svc"><span class="svc-tag">Correo</span><h4>Amazon SES o Brevo</h4><p>Correos automáticos: confirmación de solicitudes, liquidaciones y recuperar clave. Con SPF, DKIM y DMARC.</p><small><code>SMTP_URL</code></small></article>
+      </div>
+
+      <h3 class="h3">Recomendados</h3>
+      <div class="grid-3">
+        <article class="svc"><span class="svc-tag">Reputación</span><h4>Google Business Profile API</h4><p>Calificación, número de reseñas y reseñas nuevas para el Resumen del panel.</p><small><code>GBP_*</code> (OAuth)</small></article>
+        <article class="svc"><span class="svc-tag">Redes</span><h4>Meta Graph API</h4><p>Seguidores, alcance e interacciones de Instagram y Facebook, una foto por día.</p><small><code>META_TOKEN</code></small></article>
+        <article class="svc"><span class="svc-tag">Monitoreo</span><h4>UptimeRobot o Uptime Kuma</h4><p>Revisa <code>/api/salud</code> cada minuto y avisa si la API se cae.</p><small>—</small></article>
+        <article class="svc"><span class="svc-tag">Errores</span><h4>Sentry</h4><p>Errores de la API y de los frontends con contexto, antes de que alguien los reporte.</p><small><code>SENTRY_DSN</code></small></article>
+        <article class="svc"><span class="svc-tag">Push</span><h4>Web Push (VAPID)</h4><p>Notificaciones de la AppWeb a comercios y repartidores. No requiere proveedor: lo firma la API.</p><small><code>VAPID_PUBLIC</code> · <code>VAPID_PRIVATE</code></small></article>
+        <article class="svc"><span class="svc-tag">Correo del equipo</span><h4>Google Workspace o Zoho Mail</h4><p>Buzones de <code>contacto@loentrego.com</code> y del equipo.</p><small>—</small></article>
+      </div>
+
+      <h3 class="h3">Opcionales (cuando crezca)</h3>
+      <div class="grid-3">
+        <article class="svc is-opt"><span class="svc-tag">Pagos en línea</span><h4>Wompi</h4><p>Links de pago y PSE para que el cliente pague antes de la entrega en vez de contraentrega.</p></article>
+        <article class="svc is-opt"><span class="svc-tag">SMS</span><h4>Twilio o Hablame</h4><p>Respaldo si el cliente no tiene WhatsApp.</p></article>
+        <article class="svc is-opt"><span class="svc-tag">Facturación</span><h4>Proveedor de factura electrónica DIAN</h4><p>Facturas de las tarifas de envío a los comercios.</p></article>
+      </div>
+    </section>
+
+    <!-- ============ 04 API ============ -->
+    <section class="sec" id="api" aria-labelledby="t-api">
+      <p class="num">04</p>
+      <h2 id="t-api">API</h2>
+      <p class="lead">Una API REST en <code>https://app.loentrego.com/api</code>, con respuestas en JSON. Cada ruta dice quién la puede usar y qué tablas toca.</p>
+      <p>El inicio de sesión ya está conectado en la AppWeb (<code>POST /api/login</code>). Devuelve un token de acceso corto (15 min) y uno de refresco (30 días) que se guarda como hash en <code>sesiones</code>.</p>
+      <div class="filtro"><input type="search" id="api-filtro" placeholder="Filtrar rutas (p. ej. pedidos, admin, zonas)" aria-label="Filtrar rutas de la API"></div>
+      <div class="tabla-wrap">
+        <table class="tabla api" id="api-tabla">
+          <thead><tr><th>Método</th><th>Ruta</th><th>Quién</th><th>Qué hace</th><th>Tablas</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 05 BASE DE DATOS ============ -->
+    <section class="sec" id="base" aria-labelledby="t-base">
+      <p class="num">05</p>
+      <h2 id="t-base">Base de datos</h2>
+      <p class="lead">PostgreSQL 16 con PostGIS. Un solo esquema guarda <b>todo el ecosistema</b>, organizado en 10 áreas. El archivo completo, probado en una base real, está en <code>db/esquema.sql</code>.</p>
+
+      <div class="dominios" id="dominios"></div>
+
+      <h3 class="h3">Convenciones</h3>
+      <ul class="rules">
+        <li><b>Nombres en español</b>, en minúscula y con guion bajo: <code>pedido_eventos</code>, <code>zona_id</code>.</li>
+        <li><b>Llaves</b>: <code>uuid</code> en casi todo. Los catálogos que ya usan los frontends llevan texto estable (<code>municipios.id = 'bogota'</code>, <code>zonas_reparto.id</code>).</li>
+        <li><b>Dinero</b> en pesos, como entero (<code>bigint</code>): el peso colombiano no usa centavos.</li>
+        <li><b>Fechas</b> con zona horaria (<code>timestamptz</code>); la operación es en <code>America/Bogota</code>.</li>
+        <li><b>Mapas</b> en WGS84 (SRID 4326): puntos como <code>geography</code>, polígonos como <code>geometry</code> con índice GIST.</li>
+        <li><b>No se borra</b>: lo que se quita en la app se archiva (<code>archivado_en</code>). El historial y la auditoría se conservan.</li>
+      </ul>
+
+      <h3 class="h3">Lo que hace la base sola</h3>
+      <div class="grid-2">
+        <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio, la <b>localidad</b> y la <b>zona</b> según el punto, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos (y jornada abierta). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
+        <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre.</p></article>
+        <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code> (automático, manual o por intercambio).</p></article>
+        <article class="rule-card"><h4>Cálculos guardados</h4><p>La diferencia del cierre de caja, el neto de cada liquidación y el total del pago al repartidor se calculan en la base (<code>GENERATED</code>). Nadie los escribe a mano.</p></article>
+      </div>
+
+      <h3 class="h3">Vistas para el panel</h3>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th>Vista</th><th>Qué entrega</th><th>Dónde se usa</th></tr></thead>
+          <tbody>
+            <tr><td><code>v_resumen_diario</code></td><td>Pedidos, entregados, no entregados, activos, efectividad, recaudo e ingresos por envío, por día.</td><td>Resumen (Hoy, 1 mes, 6 meses, 1 año, Histórico)</td></tr>
+            <tr><td><code>v_repartidores</code></td><td>Entregas, no entregas, pedidos activos, calificación promedio y zonas de cada repartidor.</td><td>Repartidores</td></tr>
+            <tr><td><code>v_comercios</code></td><td>Pedidos, entregados, último pedido y recaudo de cada comercio.</td><td>Comercios</td></tr>
+            <tr><td><code>v_demanda_localidad</code></td><td>Pedidos por localidad y día.</td><td>Mapa → capa Calor</td></tr>
+            <tr><td><code>v_cobertura_zonas</code></td><td>Repartidores por zona, promedio de pedidos de los últimos 30 días y cuántos repartidores faltan.</td><td>Mapa → Zonas de reparto</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 06 TABLAS ============ -->
+    <section class="sec" id="tablas" aria-labelledby="t-tablas">
+      <p class="num">06</p>
+      <h2 id="t-tablas">Tablas</h2>
+      <p class="lead">Todas las tablas con sus columnas, tal cual están en la base. Las relaciones son enlaces: toca una para ir a la tabla a la que apunta.</p>
+      <div class="leyenda">
+        <span><i class="k pk">PK</i> Llave primaria</span>
+        <span><i class="k fk">FK</i> Apunta a otra tabla</span>
+        <span><i class="k uq">Único</i> No se repite</span>
+        <span><i class="k nn">•</i> Obligatoria</span>
+      </div>
+      <div class="filtro"><input type="search" id="tabla-filtro" placeholder="Buscar tabla o columna (p. ej. cobro, zona, celular)" aria-label="Buscar tabla o columna"></div>
+      <div id="tablas-lista"></div>
+
+      <h3 class="h3">Valores cerrados (tipos)</h3>
+      <div class="enums" id="enums"></div>
+    </section>
+
+    <!-- ============ 07 RELACIONES ============ -->
+    <section class="sec" id="relaciones" aria-labelledby="t-rel">
+      <p class="num">07</p>
+      <h2 id="t-rel">Relaciones</h2>
+      <p class="lead">El pedido es el centro: casi todo se conecta con él, con el comercio que lo crea o con el repartidor que lo lleva.</p>
+
+      <div class="nucleo" aria-label="Diagrama de las relaciones principales">
+        <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>comercio_usuarios · puntos_recogida</small></div>
+        <div class="n-box n-c" style="grid-area: usu"><b>usuarios</b><small>sesiones · rol admin / comercio / repartidor</small></div>
+        <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>documentos · jornadas · intercambios</small></div>
+        <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · localidades · zonas_reparto</small></div>
+        <div class="n-box n-p" style="grid-area: ped"><b>pedidos</b><small>el centro de todo</small></div>
+        <div class="n-box n-d" style="grid-area: din"><b>dinero</b><small>cierres_caja · liquidaciones · pagos_repartidor</small></div>
+        <div class="n-box n-h" style="grid-area: his"><b>lo que pasa</b><small>pedido_eventos · asignaciones · evidencias · calificaciones · notificaciones</small></div>
+        <svg class="n-lineas" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M150 150 L50 50 M150 150 L150 40 M150 150 L250 50 M150 150 L50 250 M150 150 L250 250 M150 150 L150 265"/>
+        </svg>
+      </div>
+
+      <h3 class="h3">Todas las relaciones</h3>
+      <p class="note">Cada fila es una llave foránea: la columna de la izquierda guarda el id de la tabla de la derecha (muchos a uno).</p>
+      <div class="filtro"><input type="search" id="rel-filtro" placeholder="Filtrar (p. ej. pedidos, repartidores)" aria-label="Filtrar relaciones"></div>
+      <div class="tabla-wrap">
+        <table class="tabla rel" id="rel-tabla">
+          <thead><tr><th>Tabla</th><th>Columna</th><th></th><th>Apunta a</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 08 SEGURIDAD ============ -->
+    <section class="sec" id="seguridad" aria-labelledby="t-seg">
+      <p class="num">08</p>
+      <h2 id="t-seg">Respaldo y seguridad</h2>
+      <div class="grid-2">
+        <article class="rule-card"><h4>Respaldos</h4><p>Copia completa de la base cada día a las 3:15 a. m. (<code>vps/respaldo.sh</code>). Se guardan 14 días en el servidor y una copia cifrada en R2/B2. <b>Probar una restauración una vez al mes.</b></p></article>
+        <article class="rule-card"><h4>Claves y llaves</h4><p>Las claves de los usuarios se guardan con hash (bcrypt o argon2), nunca en texto. Las llaves de servicios viven en <code>.env</code> con permisos 600, fuera de Git.</p></article>
+        <article class="rule-card"><h4>Acceso al servidor</h4><p>SSH solo con llave, sin root ni clave. Firewall con 22, 80 y 443. Postgres y Redis no se exponen. fail2ban bloquea intentos repetidos.</p></article>
+        <article class="rule-card"><h4>Inicio de sesión</h4><p>Nginx limita a 10 intentos por minuto por IP en <code>/api/login</code>, y la base registra cada intento en <code>intentos_ingreso</code>.</p></article>
+        <article class="rule-card"><h4>Datos personales</h4><p>Nombres, celulares y direcciones de clientes finales son datos personales (Ley 1581 de 2012). Solo se usan para la entrega, y el panel no rastrea la ubicación de los repartidores.</p></article>
+        <article class="rule-card"><h4>Auditoría</h4><p>Cambios sensibles (zonas, tarifas, liquidaciones, usuarios) quedan en <code>auditoria</code> con el antes, el después, quién y desde qué IP.</p></article>
+      </div>
+    </section>
+
+    <!-- ============ 09 ARCHIVOS ============ -->
+    <section class="sec" id="archivos" aria-labelledby="t-arch">
+      <p class="num">09</p>
+      <h2 id="t-arch">Archivos</h2>
+      <div class="downloads">
+        <a class="dl" href="db/esquema.sql" download><span class="dl-ext">SQL</span><b>esquema.sql</b><small>Todas las tablas, tipos, funciones, reglas y vistas</small></a>
+        <a class="dl" href="db/semilla.sql" download><span class="dl-ext">SQL</span><b>semilla.sql</b><small>Municipios, tarifas, canales, plantillas y usuarios de prueba</small></a>
+        <a class="dl" href="vps/instalar.sh" download><span class="dl-ext">SH</span><b>instalar.sh</b><small>Instala y configura el VPS completo</small></a>
+        <a class="dl" href="vps/nginx-app.conf" download><span class="dl-ext">CONF</span><b>nginx-app.conf</b><small>Sitio de Nginx para la API</small></a>
+        <a class="dl" href="vps/respaldo.sh" download><span class="dl-ext">SH</span><b>respaldo.sh</b><small>Respaldo diario de la base</small></a>
+        <a class="dl" href="datos/esquema.json" download><span class="dl-ext">JSON</span><b>esquema.json</b><small>Tablas y relaciones en JSON</small></a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="foot">
+  <span class="isotipo" aria-hidden="true"></span>
+  <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
+</footer>
+
+<script src="datos/esquema.js?v=1"></script>
+<script src="script.js?v=1"></script>
+</body>
+</html>
