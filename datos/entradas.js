@@ -47,7 +47,7 @@ window.ENTRADAS = (() => {
       desc: 'Una fila de la lista de pedidos (comercio, repartidor y admin).',
       campos: [
         ['id', 'uuid', true, 'a41f…', ''],
-        ['codigo', 'texto', true, 'LE-1042', ''],
+        ['codigo', 'texto', true, 'LOE-0001042', ''],
         ['nombre', 'texto', true, 'Andrea Gómez', 'Quien recibe'],
         ['direccion', 'texto', true, 'Calle 72 #10-34', ''],
         ['zona', 'texto', true, 'bogota', 'Municipio: bogota · funza · soacha'],
@@ -60,7 +60,7 @@ window.ENTRADAS = (() => {
       desc: 'Un pedido completo, con su historial.',
       campos: [
         ['id', 'uuid', true, 'a41f…', ''],
-        ['codigo', 'texto', true, 'LE-1042', ''],
+        ['codigo', 'texto', true, 'LOE-0001042', ''],
         ['nombre', 'texto', true, 'Andrea Gómez', ''],
         ['telefono', 'texto', true, '3001234567', '10 dígitos'],
         ['direccion', 'texto', true, 'Calle 72 #10-34', ''],
@@ -326,7 +326,7 @@ window.ENTRADAS = (() => {
             {
               id: 'guia', nombre: 'Guía del pedido (PDF)', metodo: 'GET', ruta: '/api/pedidos/:id/guia.pdf', auth,
               cuando: 'Al tocar "Descargar".', envia: null,
-              recibe: [['(archivo)', 'PDF', true, 'application/pdf', 'Código LE-…, destinatario, dirección, cobro y código QR']],
+              recibe: [['(archivo)', 'PDF', true, 'application/pdf', 'Código LOE-…, destinatario, dirección, cobro y código de barras Code 128']],
               tablas: 'pedidos', errores: [],
             },
             {
@@ -487,7 +487,7 @@ window.ENTRADAS = (() => {
                 ['resultados[]', 'lista', true, null, 'Máx. 12, los más relevantes primero'],
                 ['resultados[].tipo', 'texto', true, 'pedido', 'pedido · comercio · repartidor'],
                 ['resultados[].id', 'texto', true, 'a41f…', ''],
-                ['resultados[].titulo', 'texto', true, 'LE-1042 · Andrea Gómez', ''],
+                ['resultados[].titulo', 'texto', true, 'LOE-0001042 · Andrea Gómez', ''],
                 ['resultados[].detalle', 'texto', true, 'En camino · Tienda Central', ''],
               ],
               tablas: 'pedidos, comercios, usuarios', errores: [],

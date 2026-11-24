@@ -292,7 +292,7 @@ CREATE SEQUENCE pedidos_codigo_seq START 1001;
 
 CREATE TABLE pedidos (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  codigo                text NOT NULL UNIQUE DEFAULT 'LE-' || nextval('pedidos_codigo_seq'),   -- LE-1041
+  codigo                text NOT NULL UNIQUE DEFAULT 'LOE-' || lpad(nextval('pedidos_codigo_seq')::text, 7, '0') CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- LOE-0001041: 3 letras + 7 números (Code 128)
   comercio_id           uuid NOT NULL REFERENCES comercios(id),
   punto_recogida_id     uuid REFERENCES puntos_recogida(id),
   creado_por            uuid REFERENCES usuarios(id),
