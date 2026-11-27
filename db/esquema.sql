@@ -155,6 +155,8 @@ CREATE TABLE tarifas (
 CREATE TABLE repartidores (
   usuario_id        uuid PRIMARY KEY REFERENCES usuarios(id),   -- 1 a 1 con su usuario
   documento         text NOT NULL UNIQUE CHECK (documento ~ '^[0-9]{6,10}$'),   -- cédula de ciudadanía (la única que se acepta); no se valida contra ningún sistema
+  prefijo           char(3) UNIQUE CHECK (prefijo ~ '^[A-Z]{3}$' AND prefijo <> 'LOE'),   -- código de sus guías: CRE-0000001 (lo asigna el backend al activarlo)
+  contador_pedidos  int NOT NULL DEFAULT 0 CHECK (contador_pedidos BETWEEN 0 AND 9999999),  -- último número usado en sus guías
   estado            estado_repartidor NOT NULL DEFAULT 'en_proceso',
   fecha_ingreso     date,
   contacto_emergencia_nombre   text,
@@ -230,7 +232,7 @@ CREATE SEQUENCE pedidos_codigo_seq START 1001;
 
 CREATE TABLE pedidos (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  codigo                text NOT NULL UNIQUE DEFAULT 'LOE-' || lpad(nextval('pedidos_codigo_seq')::text, 7, '0') CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- LOE-0001041: 3 letras + 7 números (Code 128)
+  codigo                text NOT NULL UNIQUE DEFAULT 'LOE-' || lpad(nextval('pedidos_codigo_seq')::text, 7, '0') CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- prefijo del repartidor + su contador (CRE-0000042, lo pone el backend); LOE + secuencia si aún no tiene repartidor
   comercio_id           uuid NOT NULL REFERENCES comercios(id),
   creado_por            uuid REFERENCES usuarios(id),
   -- Destinatario (formulario "Nuevo pedido" de la AppWeb)

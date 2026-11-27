@@ -38,7 +38,7 @@
     comercios: 'Comercios, ecommerce y entidades públicas que envían con LoEntrego, con su cuenta para liquidar.',
     metricas_comercio_dia: 'Números de cada comercio por día: pedidos, entregados, recaudo, tarifas y tiempo de entrega.',
     metricas_repartidor_dia: 'Números de cada repartidor por día: entregas, efectivo cobrado, horas conectado y calificación.',
-    repartidores: 'Datos del repartidor: cédula de ciudadanía (solo el número, no se valida por sistema), estado, fecha de ingreso y contacto de emergencia.',
+    repartidores: 'Datos del repartidor: cédula de ciudadanía (solo el número, no se valida por sistema), prefijo de sus guías y su contador, estado, fecha de ingreso y contacto de emergencia.',
     jornadas: 'Cuándo empezó y terminó a trabajar cada repartidor. No se guarda su ubicación.',
     pedidos: 'Cada envío: destinatario, dirección, municipio, zona, cobro contraentrega, tarifa, repartidor y estado.',
     pedido_eventos: 'Historial de estados con hora y usuario (la mini-ruta de la AppWeb).',
