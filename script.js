@@ -44,7 +44,7 @@
     jornadas: 'Cuándo empezó y terminó a trabajar cada repartidor. No se guarda su ubicación.',
     pedidos: 'Cada envío: destinatario, dirección, municipio, zona, cobro contraentrega, tarifa, repartidor y estado.',
     pedido_eventos: 'Historial de estados con hora y usuario (la mini-ruta de la AppWeb).',
-    asignaciones: 'Dato auxiliar: cada cambio de repartidor del pedido con la hora y quién lo hizo. Se llena sola.',
+    asignaciones: 'Dato auxiliar: cada cambio de repartidor del pedido: quién lo tenía, a quién pasó, la hora y quién lo hizo. Se llena sola.',
     evidencias: 'Fotos y firmas de la entrega o del intento.',
     calificaciones: 'Estrellas y comentario del cliente o del comercio sobre la entrega.',
     cierres_caja: 'Cuánto cobró el repartidor en el día y cuánto entregó. La diferencia se calcula sola.',

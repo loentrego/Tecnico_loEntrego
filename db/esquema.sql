@@ -311,12 +311,13 @@ CREATE TABLE pedido_eventos (
 );
 CREATE INDEX pedido_eventos_idx ON pedido_eventos (pedido_id, ocurrido);
 
--- Asignaciones (dato auxiliar): cada vez que cambia pedidos.repartidor_id queda a quién pasó,
--- a qué hora y quién lo hizo. Sin motivo. El repartidor vigente es el de pedidos.repartidor_id.
+-- Asignaciones (dato auxiliar): cada vez que cambia pedidos.repartidor_id queda quién lo tenía,
+-- a quién pasó, a qué hora y quién lo hizo. Sin motivo. El repartidor vigente es el de pedidos.repartidor_id.
 CREATE TABLE asignaciones (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   pedido_id       uuid NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
-  repartidor_id   uuid NOT NULL REFERENCES repartidores(usuario_id),
+  repartidor_anterior  uuid REFERENCES repartidores(usuario_id),           -- quién lo tenía (null = primera asignación)
+  repartidor_nuevo     uuid NOT NULL REFERENCES repartidores(usuario_id),  -- a quién pasó
   hecho_por       uuid REFERENCES usuarios(id),      -- quién lo cambió (null = sistema)
   ocurrido        timestamptz NOT NULL DEFAULT now()
 );
@@ -656,8 +657,9 @@ BEGIN
     VALUES (NEW.id, NEW.estado, nullif(current_setting('loentrego.usuario', true), '')::uuid, NEW.motivo_detalle);
   END IF;
   IF NEW.repartidor_id IS NOT NULL AND (TG_OP = 'INSERT' OR NEW.repartidor_id IS DISTINCT FROM OLD.repartidor_id) THEN
-    INSERT INTO asignaciones (pedido_id, repartidor_id, hecho_por)
-    VALUES (NEW.id, NEW.repartidor_id, nullif(current_setting('loentrego.usuario', true), '')::uuid);
+    INSERT INTO asignaciones (pedido_id, repartidor_anterior, repartidor_nuevo, hecho_por)
+    VALUES (NEW.id, CASE WHEN TG_OP = 'UPDATE' THEN OLD.repartidor_id END, NEW.repartidor_id,
+            nullif(current_setting('loentrego.usuario', true), '')::uuid);
   END IF;
   RETURN NULL;
 END $$;

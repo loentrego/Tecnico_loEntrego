@@ -309,7 +309,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <div class="grid-2">
         <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio, la <b>localidad</b> y la <b>zona</b> según el punto, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos (y jornada abierta). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
         <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre.</p></article>
-        <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code>, solo con la hora y quién lo hizo.</p></article>
+        <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code>: quién lo tenía, a quién pasó, la hora y quién lo hizo.</p></article>
         <article class="rule-card"><h4>Métricas por día</h4><p>Cada comercio y cada repartidor tiene una fila por día en <code>metricas_comercio_dia</code> y <code>metricas_repartidor_dia</code>. El backend llama <code>refrescar_metricas()</code> cada pocos minutos y al cierre; los periodos salen sumando días, sin recorrer todos los pedidos.</p></article>
         <article class="rule-card"><h4>Cálculos guardados</h4><p>La diferencia del cierre de caja, el neto de cada liquidación y el total del pago al repartidor se calculan en la base (<code>GENERATED</code>). Nadie los escribe a mano.</p></article>
       </div>
@@ -418,8 +418,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=7"></script>
-<script src="datos/entradas.js?v=12"></script>
-<script src="script.js?v=8"></script>
+<script src="datos/esquema.js?v=8"></script>
+<script src="datos/entradas.js?v=13"></script>
+<script src="script.js?v=9"></script>
 </body>
 </html>
