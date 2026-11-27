@@ -22,5 +22,5 @@ SELECT json_build_object(
      FROM pg_type ty JOIN pg_namespace n ON n.oid=ty.typnamespace WHERE n.nspname='public' AND ty.typtype='e'),
  'vistas', (SELECT json_agg(viewname ORDER BY viewname) FROM pg_views WHERE schemaname='public' AND viewname NOT IN ('geography_columns','geometry_columns')),
  'funciones', (SELECT json_agg(p.proname ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-     WHERE n.nspname='public' AND p.proname IN ('zona_para_punto','localidad_para_punto','repartidor_sugerido','pedido_al_crear','pedido_registrar','pedido_validar_estado','tocar_actualizado'))
+     WHERE n.nspname='public' AND p.proname IN ('zona_para_punto','localidad_para_punto','repartidor_sugerido','pedido_al_crear','pedido_registrar','pedido_validar_estado','tocar_actualizado','refrescar_metricas'))
 );

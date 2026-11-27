@@ -310,6 +310,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio, la <b>localidad</b> y la <b>zona</b> según el punto, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos (y jornada abierta). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
         <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre.</p></article>
         <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code> (automático, manual o por intercambio).</p></article>
+        <article class="rule-card"><h4>Métricas por día</h4><p>Cada comercio y cada repartidor tiene una fila por día en <code>metricas_comercio_dia</code> y <code>metricas_repartidor_dia</code>. El backend llama <code>refrescar_metricas()</code> cada pocos minutos y al cierre; los periodos salen sumando días, sin recorrer todos los pedidos.</p></article>
         <article class="rule-card"><h4>Cálculos guardados</h4><p>La diferencia del cierre de caja, el neto de cada liquidación y el total del pago al repartidor se calculan en la base (<code>GENERATED</code>). Nadie los escribe a mano.</p></article>
       </div>
 
@@ -323,6 +324,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
             <tr><td><code>v_comercios</code></td><td>Pedidos, entregados, último pedido y recaudo de cada comercio.</td><td>Comercios</td></tr>
             <tr><td><code>v_demanda_localidad</code></td><td>Pedidos por localidad y día.</td><td>Mapa → capa Calor</td></tr>
             <tr><td><code>v_cobertura_zonas</code></td><td>Repartidores por zona, promedio de pedidos de los últimos 30 días y cuántos repartidores faltan.</td><td>Mapa → Zonas de reparto</td></tr>
+            <tr><td><code>v_metricas_comercio</code></td><td>Por comercio y periodo: pedidos, entregados, no entregados, cancelados, efectividad, recaudo, tarifas y minutos promedio de entrega.</td><td>Comercios y AppWeb del comercio (Hoy, Semana, Mes, 6 meses, Año, Histórico)</td></tr>
+            <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado, minutos promedio, horas conectado y calificación.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
           </tbody>
         </table>
       </div>
@@ -353,7 +356,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <p class="lead">El pedido es el centro: casi todo se conecta con él, con el comercio que lo crea o con el repartidor que lo lleva.</p>
 
       <div class="nucleo" aria-label="Diagrama de las relaciones principales">
-        <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>comercio_usuarios · puntos_recogida</small></div>
+        <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>punto de recogida · metricas_comercio_dia</small></div>
         <div class="n-box n-c" style="grid-area: usu"><b>usuarios</b><small>sesiones · rol admin / comercio / repartidor</small></div>
         <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>documentos · jornadas · intercambios</small></div>
         <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · localidades · zonas_reparto</small></div>
@@ -415,8 +418,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=3"></script>
-<script src="datos/entradas.js?v=8"></script>
-<script src="script.js?v=4"></script>
+<script src="datos/esquema.js?v=4"></script>
+<script src="datos/entradas.js?v=9"></script>
+<script src="script.js?v=5"></script>
 </body>
 </html>

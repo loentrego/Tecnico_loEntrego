@@ -357,7 +357,7 @@ window.ENTRADAS = (() => {
                 ['comercio.correo', 'texto', false, 'hola@tiendacentral.co', ''],
                 ['repartidor.zona', 'texto', false, 'Bogotá y alrededores', 'Solo si es repartidor'],
               ],
-              tablas: 'usuarios, comercios, puntos_recogida, repartidores', errores: [],
+              tablas: 'usuarios, comercios, repartidores', errores: [],
             },
             {
               id: 'editar-cuenta', nombre: 'Editar datos del comercio', metodo: 'PATCH', ruta: '/api/yo/comercio', auth,
@@ -367,7 +367,7 @@ window.ENTRADAS = (() => {
                 ['celular', 'texto', false, '3001112233', ''],
                 ['correo', 'texto', false, 'hola@tiendacentral.co', ''],
               ],
-              recibe: [['ok', 'booleano', true, true, '']], tablas: 'comercios, puntos_recogida, auditoria', errores: [['422', 'Dato inválido']],
+              recibe: [['ok', 'booleano', true, true, '']], tablas: 'comercios, auditoria', errores: [['422', 'Dato inválido']],
             },
             {
               id: 'tema', nombre: 'Guardar tema', metodo: 'PATCH', ruta: '/api/yo', auth,
@@ -779,7 +779,7 @@ window.ENTRADAS = (() => {
                 ['acepta_datos', 'booleano', true, true, ''],
               ],
               recibe: [['usuario', 'texto', true, 'laespiga', ''], ['rol', 'texto', true, 'comercio', ''], ['mensaje', 'texto', true, 'Tu comercio quedó activo', '']],
-              tablas: 'enlaces_registro, registros_por_enlace, usuarios, comercios, comercio_usuarios, puntos_recogida',
+              tablas: 'enlaces_registro, registros_por_enlace, usuarios, comercios',
               errores: [['409', 'El usuario ya existe (llega en "campos")'], ['410', 'El enlace ya se usó o venció'], ['422', 'Campo inválido']],
             },
           ],

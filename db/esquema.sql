@@ -241,40 +241,24 @@ CREATE INDEX zona_repartidores_rep_idx ON zona_repartidores (repartidor_id);
 -- =====================================================================
 CREATE TABLE comercios (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id        uuid NOT NULL UNIQUE REFERENCES usuarios(id),   -- 1 a 1 con su usuario (igual que repartidores)
   nombre            text NOT NULL,                   -- nombre comercial
   tipo              tipo_comercio NOT NULL DEFAULT 'comercio',
   estado            estado_comercio NOT NULL DEFAULT 'activo',
-  celular           text,
+  celular           text,                            -- debe tener WhatsApp
   correo            citext,
-  pedidos_diarios_estimados int,
+  -- Punto de recogida: cada comercio tiene uno y el repartidor recoge aquí
+  direccion         text NOT NULL,
+  detalle           text,                            -- local, bodega, piso, a quién preguntar
+  municipio_id      text NOT NULL REFERENCES municipios(id),
+  punto             geography(Point, 4326),          -- dirección geocodificada (la pone el backend)
+  localidad_id      text REFERENCES localidades(id),
   creado            timestamptz NOT NULL DEFAULT now(),
   actualizado       timestamptz NOT NULL DEFAULT now()
 );
 CREATE TRIGGER t_comercios_act BEFORE UPDATE ON comercios FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 CREATE INDEX comercios_nombre_idx ON comercios (lower(nombre));
-
--- Usuarios del comercio (dueño y operadores; un usuario puede manejar varios comercios)
-CREATE TABLE comercio_usuarios (
-  comercio_id   uuid NOT NULL REFERENCES comercios(id) ON DELETE CASCADE,
-  usuario_id    uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  es_dueno      boolean NOT NULL DEFAULT false,
-  PRIMARY KEY (comercio_id, usuario_id)
-);
-
--- Puntos de recogida (bodega, local, sede). El repartidor recoge aquí.
-CREATE TABLE puntos_recogida (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  comercio_id   uuid NOT NULL REFERENCES comercios(id) ON DELETE CASCADE,
-  nombre        text NOT NULL DEFAULT 'Principal',
-  direccion     text NOT NULL,
-  detalle       text,
-  punto         geography(Point, 4326),
-  localidad_id  text REFERENCES localidades(id),
-  principal     boolean NOT NULL DEFAULT false,
-  archivado_en  timestamptz
-);
-CREATE UNIQUE INDEX puntos_un_principal ON puntos_recogida (comercio_id) WHERE principal AND archivado_en IS NULL;
-CREATE INDEX puntos_recogida_geo_idx ON puntos_recogida USING gist (punto);
+CREATE INDEX comercios_punto_idx ON comercios USING gist (punto);
 
 -- =====================================================================
 --  7. PEDIDOS (el corazón)
@@ -285,7 +269,6 @@ CREATE TABLE pedidos (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo                text NOT NULL UNIQUE DEFAULT 'LOE-' || lpad(nextval('pedidos_codigo_seq')::text, 7, '0') CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- LOE-0001041: 3 letras + 7 números (Code 128)
   comercio_id           uuid NOT NULL REFERENCES comercios(id),
-  punto_recogida_id     uuid REFERENCES puntos_recogida(id),
   creado_por            uuid REFERENCES usuarios(id),
   -- Destinatario (formulario "Nuevo pedido" de la AppWeb)
   destinatario_nombre   text NOT NULL,
@@ -791,5 +774,128 @@ LEFT JOIN LATERAL (
 ) d ON true
 WHERE z.archivado_en IS NULL
 GROUP BY z.id, z.nombre, z.capacidad_diaria, d.promedio;
+
+-- =====================================================================
+--  15. MÉTRICAS POR DÍA (comercios y repartidores)
+--  Una fila por comercio o repartidor y día. Los periodos (hoy, semana,
+--  mes, 6 meses, año, histórico) se sacan sumando filas. El backend llama
+--  refrescar_metricas() cada pocos minutos para hoy y al cierre del día.
+-- =====================================================================
+CREATE TABLE metricas_comercio_dia (
+  comercio_id       uuid NOT NULL REFERENCES comercios(id) ON DELETE CASCADE,
+  dia               date NOT NULL,
+  pedidos           int NOT NULL DEFAULT 0,
+  entregados        int NOT NULL DEFAULT 0,
+  no_entregados     int NOT NULL DEFAULT 0,
+  cancelados        int NOT NULL DEFAULT 0,
+  recaudo           bigint NOT NULL DEFAULT 0,       -- cobrado contraentrega en pedidos entregados
+  tarifas           bigint NOT NULL DEFAULT 0,       -- envíos de los pedidos entregados
+  minutos_entrega   bigint NOT NULL DEFAULT 0,       -- suma de minutos de recogido a entregado
+  calculado         timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (comercio_id, dia)
+);
+CREATE INDEX metricas_comercio_dia_idx ON metricas_comercio_dia (dia);
+
+CREATE TABLE metricas_repartidor_dia (
+  repartidor_id     uuid NOT NULL REFERENCES repartidores(usuario_id) ON DELETE CASCADE,
+  dia               date NOT NULL,
+  asignados         int NOT NULL DEFAULT 0,
+  entregados        int NOT NULL DEFAULT 0,
+  no_entregados     int NOT NULL DEFAULT 0,
+  cobrado           bigint NOT NULL DEFAULT 0,       -- efectivo recibido en entregas
+  minutos_entrega   bigint NOT NULL DEFAULT 0,
+  minutos_jornada   int NOT NULL DEFAULT 0,          -- tiempo conectado ese día
+  calificaciones    int NOT NULL DEFAULT 0,          -- cuántas recibió
+  estrellas         int NOT NULL DEFAULT 0,          -- suma de estrellas (promedio = estrellas / calificaciones)
+  calculado         timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (repartidor_id, dia)
+);
+CREATE INDEX metricas_repartidor_dia_idx ON metricas_repartidor_dia (dia);
+
+-- Recalcula un día completo (por defecto hoy). Se puede repetir sin duplicar.
+CREATE FUNCTION refrescar_metricas(p_dia date DEFAULT current_date) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM metricas_comercio_dia WHERE dia = p_dia;
+  INSERT INTO metricas_comercio_dia (comercio_id, dia, pedidos, entregados, no_entregados, cancelados, recaudo, tarifas, minutos_entrega)
+  SELECT p.comercio_id, p_dia,
+         count(*),
+         count(*) FILTER (WHERE p.estado = 'entregado'),
+         count(*) FILTER (WHERE p.estado = 'no_entregado'),
+         count(*) FILTER (WHERE p.estado = 'cancelado'),
+         coalesce(sum(p.cobro)  FILTER (WHERE p.estado = 'entregado'), 0),
+         coalesce(sum(p.tarifa) FILTER (WHERE p.estado = 'entregado'), 0),
+         coalesce(sum(t.minutos) FILTER (WHERE p.estado = 'entregado'), 0)
+  FROM pedidos p
+  LEFT JOIN LATERAL (
+    SELECT extract(epoch FROM p.cerrado_en - coalesce(min(e.ocurrido), p.creado))::bigint / 60 AS minutos
+    FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido'
+  ) t ON true
+  WHERE p.programado_para = p_dia
+  GROUP BY p.comercio_id;
+
+  DELETE FROM metricas_repartidor_dia WHERE dia = p_dia;
+  INSERT INTO metricas_repartidor_dia (repartidor_id, dia, asignados, entregados, no_entregados, cobrado, minutos_entrega, minutos_jornada, calificaciones, estrellas)
+  SELECT r.usuario_id, p_dia,
+         coalesce(pd.asignados, 0), coalesce(pd.entregados, 0), coalesce(pd.no_entregados, 0),
+         coalesce(pd.cobrado, 0), coalesce(pd.minutos, 0),
+         coalesce(j.minutos, 0), coalesce(c.n, 0), coalesce(c.estrellas, 0)
+  FROM repartidores r
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS asignados,
+           count(*) FILTER (WHERE p.estado = 'entregado')    AS entregados,
+           count(*) FILTER (WHERE p.estado = 'no_entregado') AS no_entregados,
+           sum(p.cobro) FILTER (WHERE p.estado = 'entregado') AS cobrado,
+           sum(extract(epoch FROM p.cerrado_en - coalesce(
+                 (SELECT min(e.ocurrido) FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido'),
+                 p.creado))::bigint / 60) FILTER (WHERE p.estado = 'entregado') AS minutos
+    FROM pedidos p WHERE p.repartidor_id = r.usuario_id AND p.programado_para = p_dia
+  ) pd ON true
+  LEFT JOIN LATERAL (
+    SELECT sum(extract(epoch FROM coalesce(jo.fin, now()) - jo.inicio))::int / 60 AS minutos
+    FROM jornadas jo WHERE jo.repartidor_id = r.usuario_id AND jo.inicio::date = p_dia
+  ) j ON true
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS n, sum(ca.estrellas) AS estrellas
+    FROM calificaciones ca WHERE ca.repartidor_id = r.usuario_id AND ca.creado::date = p_dia
+  ) c ON true
+  WHERE pd.asignados > 0 OR j.minutos > 0 OR c.n > 0;
+END $$;
+
+-- Periodos que usan el panel y la AppWeb
+CREATE VIEW periodos AS
+SELECT * FROM (VALUES
+  ('hoy',       1, current_date),
+  ('semana',    2, current_date - 6),
+  ('mes',       3, current_date - 29),
+  ('6m',        4, (current_date - interval '6 months')::date),
+  ('anio',      5, (current_date - interval '1 year')::date),
+  ('historico', 6, '-infinity'::date)
+) AS t (periodo, orden, desde);
+
+-- Métricas de cada comercio por periodo
+CREATE VIEW v_metricas_comercio AS
+SELECT m.comercio_id, pe.periodo, pe.orden,
+       sum(m.pedidos)::int AS pedidos, sum(m.entregados)::int AS entregados,
+       sum(m.no_entregados)::int AS no_entregados, sum(m.cancelados)::int AS cancelados,
+       round(100.0 * sum(m.entregados) / nullif(sum(m.entregados) + sum(m.no_entregados), 0), 1) AS efectividad,
+       sum(m.recaudo)::bigint AS recaudo, sum(m.tarifas)::bigint AS tarifas,
+       round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio
+FROM periodos pe
+JOIN metricas_comercio_dia m ON m.dia >= pe.desde
+GROUP BY m.comercio_id, pe.periodo, pe.orden;
+
+-- Métricas de cada repartidor por periodo
+CREATE VIEW v_metricas_repartidor AS
+SELECT m.repartidor_id, pe.periodo, pe.orden,
+       sum(m.asignados)::int AS asignados, sum(m.entregados)::int AS entregados,
+       sum(m.no_entregados)::int AS no_entregados,
+       round(100.0 * sum(m.entregados) / nullif(sum(m.entregados) + sum(m.no_entregados), 0), 1) AS efectividad,
+       sum(m.cobrado)::bigint AS cobrado,
+       round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio,
+       round(sum(m.minutos_jornada) / 60.0, 1) AS horas_jornada,
+       round(sum(m.estrellas)::numeric / nullif(sum(m.calificaciones), 0), 2) AS calificacion
+FROM periodos pe
+JOIN metricas_repartidor_dia m ON m.dia >= pe.desde
+GROUP BY m.repartidor_id, pe.periodo, pe.orden;
 
 COMMIT;
