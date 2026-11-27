@@ -42,7 +42,6 @@ CREATE TYPE motivo_no_entrega AS ENUM ('no_contesta', 'direccion', 'rechazado', 
 CREATE TYPE tipo_comercio AS ENUM ('comercio', 'ecommerce', 'sector_publico');
 CREATE TYPE estado_comercio AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_repartidor AS ENUM ('en_proceso', 'activo', 'suspendido', 'retirado');
-CREATE TYPE tipo_documento AS ENUM ('cc', 'ce', 'ppt', 'pasaporte');
 
 
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
@@ -155,30 +154,15 @@ CREATE TABLE tarifas (
 -- =====================================================================
 CREATE TABLE repartidores (
   usuario_id        uuid PRIMARY KEY REFERENCES usuarios(id),   -- 1 a 1 con su usuario
-  tipo_documento    tipo_documento NOT NULL DEFAULT 'cc',
-  documento         text NOT NULL,
+  documento         text NOT NULL UNIQUE CHECK (documento ~ '^[0-9]{6,10}$'),   -- cédula de ciudadanía (la única que se acepta); no se valida contra ningún sistema
   estado            estado_repartidor NOT NULL DEFAULT 'en_proceso',
   fecha_ingreso     date,
   contacto_emergencia_nombre   text,
   contacto_emergencia_celular  text,
   creado            timestamptz NOT NULL DEFAULT now(),
-  actualizado       timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tipo_documento, documento)
+  actualizado       timestamptz NOT NULL DEFAULT now()
 );
 CREATE TRIGGER t_repartidores_act BEFORE UPDATE ON repartidores FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
-
--- Documentos del repartidor (cédula, antecedentes) con vencimiento
-CREATE TABLE documentos_repartidor (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  repartidor_id   uuid NOT NULL REFERENCES repartidores(usuario_id) ON DELETE CASCADE,
-  tipo            text NOT NULL CHECK (tipo IN ('cedula', 'antecedentes', 'otro')),
-  archivo_id      uuid NOT NULL REFERENCES archivos(id),
-  vence           date,
-  verificado_por  uuid REFERENCES usuarios(id),
-  verificado_en   timestamptz,
-  creado          timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX documentos_vence_idx ON documentos_repartidor (vence) WHERE vence IS NOT NULL;
 
 -- Jornadas: cuándo estuvo disponible (no se rastrea su ubicación)
 CREATE TABLE jornadas (

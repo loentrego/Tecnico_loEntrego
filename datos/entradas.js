@@ -782,8 +782,7 @@ window.ENTRADAS = (() => {
           id: 'lk-repartidor', nombre: 'Registro de repartidor', archivo: 'form repartidor/index.html?t=TOKEN',
           controles: [
             ['texto', 'Nombre completo', 'nombre', 'Nombre y apellido', 'registro-repartidor'],
-            ['lista (select)', 'Documento: C.C. · C.E. · PPT · Pasaporte', 'tipo_documento', 'cc · ce · ppt · pasaporte', 'registro-repartidor'],
-            ['texto', 'Número de documento', 'documento', '5 a 15 letras o números', 'registro-repartidor'],
+            ['texto', 'Cédula de ciudadanía', 'documento', 'Solo números, 6 a 10 dígitos (solo se acepta C.C.)', 'registro-repartidor'],
             ['teléfono', 'Celular', 'celular', '10 dígitos, empieza por 3 · aviso: debe tener WhatsApp', 'registro-repartidor'],
             ['correo', 'Correo', 'correo', 'Correo válido · aviso: que lo revise seguido (Gmail, Outlook o de su dominio)', 'registro-repartidor'],
             ['texto', 'Usuario', 'usuario', '4 a 40: minúsculas, números, punto, guion', 'registro-repartidor'],
@@ -799,7 +798,6 @@ window.ENTRADAS = (() => {
               envia: [
                 ['rol', 'texto', true, 'repartidor', ''],
                 ['nombre', 'texto', true, 'Camilo Restrepo', ''],
-                ['tipo_documento', 'texto', true, 'cc', ''],
                 ['documento', 'texto', true, '1012345678', ''],
                 ['celular', 'texto', true, '3104445566', ''],
                 ['correo', 'texto', true, 'camilo@correo.com', ''],
