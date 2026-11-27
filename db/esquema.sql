@@ -311,18 +311,16 @@ CREATE TABLE pedido_eventos (
 );
 CREATE INDEX pedido_eventos_idx ON pedido_eventos (pedido_id, ocurrido);
 
--- Asignaciones: quién tuvo el pedido y desde cuándo. Se llena sola al cambiar pedidos.repartidor_id
--- (el intercambio del panel solo cambia ese campo; el backend pone loentrego.modo_asignacion = 'intercambio')
+-- Asignaciones (dato auxiliar): cada vez que cambia pedidos.repartidor_id queda a quién pasó,
+-- a qué hora y quién lo hizo. Sin motivo. El repartidor vigente es el de pedidos.repartidor_id.
 CREATE TABLE asignaciones (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   pedido_id       uuid NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
   repartidor_id   uuid NOT NULL REFERENCES repartidores(usuario_id),
-  modo            text NOT NULL CHECK (modo IN ('auto', 'manual', 'intercambio')),
-  asignado_por    uuid REFERENCES usuarios(id),
-  desde           timestamptz NOT NULL DEFAULT now(),
-  hasta           timestamptz
+  hecho_por       uuid REFERENCES usuarios(id),      -- quién lo cambió (null = sistema)
+  ocurrido        timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX asignaciones_vigente ON asignaciones (pedido_id) WHERE hasta IS NULL;
+CREATE INDEX asignaciones_idx ON asignaciones (pedido_id, ocurrido);
 
 -- Evidencias de entrega (foto, firma) o de no entrega
 CREATE TABLE evidencias (
@@ -658,11 +656,8 @@ BEGIN
     VALUES (NEW.id, NEW.estado, nullif(current_setting('loentrego.usuario', true), '')::uuid, NEW.motivo_detalle);
   END IF;
   IF NEW.repartidor_id IS NOT NULL AND (TG_OP = 'INSERT' OR NEW.repartidor_id IS DISTINCT FROM OLD.repartidor_id) THEN
-    UPDATE asignaciones SET hasta = now() WHERE pedido_id = NEW.id AND hasta IS NULL;
-    INSERT INTO asignaciones (pedido_id, repartidor_id, modo, asignado_por)
-    VALUES (NEW.id, NEW.repartidor_id,
-            coalesce(nullif(current_setting('loentrego.modo_asignacion', true), ''), CASE WHEN TG_OP = 'INSERT' THEN 'auto' ELSE 'manual' END),
-            nullif(current_setting('loentrego.usuario', true), '')::uuid);
+    INSERT INTO asignaciones (pedido_id, repartidor_id, hecho_por)
+    VALUES (NEW.id, NEW.repartidor_id, nullif(current_setting('loentrego.usuario', true), '')::uuid);
   END IF;
   RETURN NULL;
 END $$;
