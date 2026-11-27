@@ -100,7 +100,6 @@ window.ENTRADAS = (() => {
         ['nombre', 'texto', true, 'Tienda Central', ''],
         ['tipo', 'texto', true, 'ecommerce', 'comercio · ecommerce · sector_publico'],
         ['estado', 'texto', true, 'activo', ''],
-        ['localidad', 'texto', false, 'Chapinero', ''],
         ['pedidos', 'entero', true, 128, 'En el periodo'],
         ['entregados', 'entero', true, 121, ''],
         ['recaudo', 'entero', true, 3450000, 'Pesos'],
@@ -286,7 +285,7 @@ window.ENTRADAS = (() => {
           llamadas: [
             {
               id: 'crear-pedido', nombre: 'Crear pedido', metodo: 'POST', ruta: '/api/pedidos', auth,
-              cuando: 'Al tocar "Crear pedido". La API geocodifica la dirección; la base pone tarifa, localidad, zona y repartidor.',
+              cuando: 'Al tocar "Crear pedido". La API geocodifica la dirección; guarda coordenadas y Place ID; la base pone tarifa, zona y repartidor.',
               envia: [
                 ['zona', 'texto', true, 'bogota', 'bogota · funza · soacha (municipio)'],
                 ['direccion', 'texto', true, 'Calle 72 #10-34', ''],
@@ -350,7 +349,6 @@ window.ENTRADAS = (() => {
               recibe: [
                 ['usuario', 'Usuario', true, null, ''],
                 ['comercio.nombre', 'texto', false, 'Tienda Central', 'Solo si es comercio'],
-                ['comercio.localidad', 'texto', false, 'Chapinero', ''],
                 ['comercio.direccion', 'texto', false, 'Calle 80 #15-20', ''],
                 ['comercio.celular', 'texto', false, '3001112233', ''],
                 ['comercio.correo', 'texto', false, 'hola@tiendacentral.co', ''],
@@ -616,7 +614,7 @@ window.ENTRADAS = (() => {
             },
             {
               id: 'localidades', nombre: 'Localidades', metodo: 'GET', ruta: '/api/admin/mapa/localidades', auth,
-              cuando: 'Al abrir el mapa (hoy sale de Scripts/territorio.json). Se puede cachear un día.', envia: null,
+              cuando: 'Al abrir el mapa. Sale de Scripts/territorio.json, solo para dibujar; la base no guarda localidades.', envia: null,
               recibe: [
                 ['type', 'texto', true, 'FeatureCollection', ''],
                 ['features[].id', 'texto', true, 'chapinero', ''],
@@ -625,18 +623,18 @@ window.ENTRADAS = (() => {
                 ['features[].properties.aproximado', 'booleano', true, false, 'Comunas de Soacha: true'],
                 ['features[].geometry', 'objeto', true, null, 'MultiPolygon'],
               ],
-              tablas: 'localidades', errores: [],
+              tablas: '— (archivo estático del panel, no está en la base)', errores: [],
             },
             {
-              id: 'demanda', nombre: 'Demanda por localidad (Calor)', metodo: 'GET', ruta: '/api/admin/mapa/demanda?periodo=', auth,
+              id: 'demanda', nombre: 'Demanda en el mapa (Calor)', metodo: 'GET', ruta: '/api/admin/mapa/demanda?periodo=', auth,
               cuando: 'Al activar Calor o cambiar de periodo.', envia: null,
               recibe: [
-                ['localidades[]', 'lista', true, null, ''],
-                ['localidades[].id', 'texto', true, 'chapinero', ''],
-                ['localidades[].pedidos', 'entero', true, 312, ''],
-                ['localidades[].repartidores', 'decimal', true, 1.5, 'Fracción de repartidores en la localidad'],
+                ['puntos[]', 'lista', true, null, 'Un punto por pedido; el mapa los agrupa'],
+                ['puntos[].lat', 'decimal', true, 4.6486, ''],
+                ['puntos[].lon', 'decimal', true, -74.0628, ''],
+                ['puntos[].zona_id', 'texto', false, 'chapinero-norte', ''],
               ],
-              tablas: 'v_demanda_localidad, zona_repartidores', errores: [],
+              tablas: 'v_demanda_puntos', errores: [],
             },
             {
               id: 'guardar-zona', nombre: 'Crear o editar zona', metodo: 'PUT', ruta: '/api/admin/zonas/:id', auth,

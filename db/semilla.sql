@@ -1,7 +1,7 @@
 -- =====================================================================
 --  LoEntrego · Datos iniciales (catálogos y usuarios de prueba)
 --  Correr después de esquema.sql:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/semilla.sql
---  Las localidades y zonas (polígonos) se cargan con el SQL que genera el panel
+--  Las zonas de reparto (polígonos) se cargan con el SQL que genera el panel
 --  (window.LEMapa.sql()) o con ogr2ogr: ver frontend_admin/docs/zonas-geojson-postgis.md
 -- =====================================================================
 BEGIN;

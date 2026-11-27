@@ -163,8 +163,8 @@ rm /srv/loentrego/mantenimiento/app.on
             <tr><td><b>Certbot</b></td><td>2.x</td><td>Certificado HTTPS gratis de Let's Encrypt, con renovación automática.</td><td><code>certbot python3-certbot-nginx</code></td></tr>
             <tr><th colspan="4" class="grupo">Datos</th></tr>
             <tr><td><b>PostgreSQL</b></td><td>16</td><td>La base de datos de todo el ecosistema.</td><td><code>postgresql postgresql-contrib</code></td></tr>
-            <tr><td><b>PostGIS</b></td><td>3.4</td><td>Zonas de reparto, localidades y puntos de entrega. Asigna el pedido a la zona correcta.</td><td><code>postgresql-16-postgis-3</code></td></tr>
-            <tr><td><b>GDAL (ogr2ogr)</b></td><td>3.8</td><td>Importa zonas y localidades desde GeoJSON o shapefile.</td><td><code>gdal-bin</code></td></tr>
+            <tr><td><b>PostGIS</b></td><td>3.4</td><td>Zonas de reparto y coordenadas de entrega. Asigna el pedido a la zona correcta.</td><td><code>postgresql-16-postgis-3</code></td></tr>
+            <tr><td><b>GDAL (ogr2ogr)</b></td><td>3.8</td><td>Importa zonas desde GeoJSON o shapefile.</td><td><code>gdal-bin</code></td></tr>
             <tr><td><b>Redis</b></td><td>7</td><td>Cola de notificaciones (push y correo) y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
             <tr><th colspan="4" class="grupo">Aplicación</th></tr>
             <tr><td><b>Node.js</b></td><td>22 LTS</td><td>Corre la API.</td><td><code>nodejs</code> (NodeSource)</td></tr>
@@ -211,7 +211,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <article class="svc"><span class="svc-tag">Servidor</span><h4>Bluehost (VPS)</h4><p>2 vCPU, 4 GB de RAM y 100 GB. Aquí está todo lo que usa la gente: los 4 frontends, Nginx, la API, PostgreSQL y Redis.</p><small>Acceso: SSH con llave</small></article>
         <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Namecheap</h4><p>Dominio <code>loentrego.com</code>. Registros A de <code>@</code>, <code>www</code>, <code>app</code> y <code>admin</code> → IP del VPS, y MX, SPF, DKIM y DMARC del correo.</p><small>Variable: —</small></article>
         <article class="svc"><span class="svc-tag">Código y despliegue</span><h4>GitHub</h4><p>Organiza el código de los 5 repositorios. Con cada push a <code>main</code>, GitHub Actions copia los archivos al VPS. GitHub Pages solo publica el mockup con datos ficticios.</p><small>Secretos: <code>VPS_HOST</code> · <code>VPS_SSH_KEY</code> · <code>VPS_KNOWN</code></small></article>
-        <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en un punto para asignar zona y localidad. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
+        <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en coordenadas y un Place ID para asignar la zona. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
         <article class="svc"><span class="svc-tag">Archivos</span><h4>Cloudflare R2 o Backblaze B2</h4><p>Fotos de evidencia, documentos de repartidores, soportes de pago y los respaldos cifrados de la base.</p><small><code>S3_ENDPOINT</code> · <code>S3_KEY</code> · <code>S3_SECRET</code></small></article>
         <article class="svc"><span class="svc-tag">Correo</span><h4>Amazon SES o Brevo</h4><p>Correos automáticos: confirmación de solicitudes, liquidaciones y recuperar clave. Con SPF, DKIM y DMARC.</p><small><code>SMTP_URL</code></small></article>
       </div>
@@ -307,7 +307,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
       <h3 class="h3">Lo que hace la base sola</h3>
       <div class="grid-2">
-        <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio, la <b>localidad</b> y la <b>zona</b> según el punto, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos (y jornada abierta). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
+        <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio y la <b>zona</b> según las coordenadas, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos (y jornada abierta). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
         <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre.</p></article>
         <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code>: quién lo tenía, a quién pasó, la hora y quién lo hizo.</p></article>
         <article class="rule-card"><h4>Métricas por día</h4><p>Cada comercio y cada repartidor tiene una fila por día en <code>metricas_comercio_dia</code> y <code>metricas_repartidor_dia</code>. El backend llama <code>refrescar_metricas()</code> cada pocos minutos y al cierre; los periodos salen sumando días, sin recorrer todos los pedidos.</p></article>
@@ -322,7 +322,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
             <tr><td><code>v_resumen_diario</code></td><td>Pedidos, entregados, no entregados, activos, efectividad, recaudo e ingresos por envío, por día.</td><td>Resumen (Hoy, 1 mes, 6 meses, 1 año, Histórico)</td></tr>
             <tr><td><code>v_repartidores</code></td><td>Entregas, no entregas, pedidos activos, calificación promedio y zonas de cada repartidor.</td><td>Repartidores</td></tr>
             <tr><td><code>v_comercios</code></td><td>Pedidos, entregados, último pedido y recaudo de cada comercio.</td><td>Comercios</td></tr>
-            <tr><td><code>v_demanda_localidad</code></td><td>Pedidos por localidad y día.</td><td>Mapa → capa Calor</td></tr>
+            <tr><td><code>v_demanda_puntos</code></td><td>Coordenadas de los pedidos por día y zona (sin localidades).</td><td>Mapa → capa Calor</td></tr>
             <tr><td><code>v_cobertura_zonas</code></td><td>Repartidores por zona, promedio de pedidos de los últimos 30 días y cuántos repartidores faltan.</td><td>Mapa → Zonas de reparto</td></tr>
             <tr><td><code>v_metricas_comercio</code></td><td>Por comercio y periodo: pedidos, entregados, no entregados, cancelados, efectividad, recaudo, tarifas y minutos promedio de entrega.</td><td>Comercios y AppWeb del comercio (Hoy, Semana, Mes, 6 meses, Año, Histórico)</td></tr>
             <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado, minutos promedio, horas conectado y calificación.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
@@ -359,7 +359,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>punto de recogida · metricas_comercio_dia</small></div>
         <div class="n-box n-c" style="grid-area: usu"><b>usuarios</b><small>sesiones · rol admin / comercio / repartidor</small></div>
         <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>documentos · jornadas · metricas_repartidor_dia</small></div>
-        <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · localidades · zonas_reparto</small></div>
+        <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · zonas_reparto</small></div>
         <div class="n-box n-p" style="grid-area: ped"><b>pedidos</b><small>el centro de todo</small></div>
         <div class="n-box n-d" style="grid-area: din"><b>dinero</b><small>cierres_caja · liquidaciones · pagos_repartidor</small></div>
         <div class="n-box n-h" style="grid-area: his"><b>lo que pasa</b><small>pedido_eventos · asignaciones · evidencias · calificaciones · notificaciones</small></div>
@@ -418,8 +418,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=8"></script>
-<script src="datos/entradas.js?v=13"></script>
-<script src="script.js?v=9"></script>
+<script src="datos/esquema.js?v=9"></script>
+<script src="datos/entradas.js?v=14"></script>
+<script src="script.js?v=10"></script>
 </body>
 </html>

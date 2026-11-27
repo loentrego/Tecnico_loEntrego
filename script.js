@@ -12,7 +12,7 @@
   // ---------- Áreas: cómo se agrupan las tablas ----------
   const AREAS = [
     { id: 'acceso', nombre: 'Acceso', color: '#3422A8', tablas: ['usuarios', 'sesiones', 'intentos_ingreso', 'suscripciones_push'], txt: 'Quién entra, desde dónde y con qué rol.' },
-    { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['municipios', 'localidades', 'tarifas', 'zonas_reparto', 'zona_repartidores'], txt: 'Municipios, localidades, zonas de reparto y tarifas (PostGIS).' },
+    { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['municipios', 'tarifas', 'zonas_reparto', 'zona_repartidores'], txt: 'Municipios, zonas de reparto y tarifas. Las direcciones se guardan solo como coordenadas y Place ID.' },
     { id: 'comercios', nombre: 'Comercios', color: '#5A48D6', tablas: ['comercios', 'metricas_comercio_dia'], txt: 'Los clientes de LoEntrego, su punto de recogida y sus métricas.' },
     { id: 'repartidores', nombre: 'Repartidores', color: '#4F8DFF', tablas: ['repartidores', 'documentos_repartidor', 'jornadas', 'metricas_repartidor_dia'], txt: 'Quién reparte, sus documentos, jornadas y métricas.' },
     { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'asignaciones', 'evidencias', 'calificaciones'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
@@ -32,7 +32,6 @@
     intentos_ingreso: 'Cada intento de inicio de sesión, exitoso o no. Sirve para bloquear fuerza bruta.',
     suscripciones_push: 'Suscripciones Web Push de la AppWeb para mandar notificaciones.',
     municipios: 'Bogotá, Funza y Soacha, con su límite y si hay cobertura.',
-    localidades: 'Localidades de Bogotá, comunas de Soacha y cuadrantes de Funza. Referencia para reportes.',
     tarifas: 'Tarifa de envío por municipio con vigencia. El pedido copia la vigente al crearse.',
     zonas_reparto: 'Las zonas que se dibujan en el panel. Deciden a qué repartidor va cada pedido.',
     zona_repartidores: 'Qué repartidores atienden cada zona (muchos a muchos).',

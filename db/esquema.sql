@@ -22,7 +22,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid(), hash de claves
 CREATE EXTENSION IF NOT EXISTS citext;     -- usuario y correo sin distinguir mayúsculas
-CREATE EXTENSION IF NOT EXISTS postgis;    -- zonas, localidades y puntos de entrega
+CREATE EXTENSION IF NOT EXISTS postgis;    -- zonas de reparto y puntos (coordenadas)
 
 SET TIME ZONE 'America/Bogota';
 
@@ -44,8 +44,6 @@ CREATE TYPE estado_comercio AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_repartidor AS ENUM ('en_proceso', 'activo', 'suspendido', 'retirado');
 CREATE TYPE tipo_documento AS ENUM ('cc', 'ce', 'ppt', 'pasaporte');
 
--- Tipos de territorio (localidades de Bogotá, comunas de Soacha, cuadrantes de Funza…)
-CREATE TYPE tipo_territorio AS ENUM ('localidad', 'comuna', 'cuadrante', 'rural', 'corregimiento');
 
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
 CREATE TYPE estado_liquidacion AS ENUM ('borrador', 'aprobada', 'pagada', 'anulada');
@@ -141,19 +139,6 @@ CREATE TABLE municipios (
 );
 CREATE INDEX municipios_geom_idx ON municipios USING gist (geom);
 
--- Localidades, comunas, cuadrantes: referencia para reportes (no se editan en el panel)
-CREATE TABLE localidades (
-  id            text PRIMARY KEY,                    -- 'chapinero', 'soacha-comuna-1', …
-  municipio_id  text NOT NULL REFERENCES municipios(id),
-  nombre        text NOT NULL,
-  tipo          tipo_territorio NOT NULL,
-  aproximado    boolean NOT NULL DEFAULT false,      -- comunas de Soacha: límite aproximado
-  fuente        text,
-  geom          geometry(MultiPolygon, 4326) NOT NULL
-);
-CREATE INDEX localidades_geom_idx ON localidades USING gist (geom);
-CREATE INDEX localidades_municipio_idx ON localidades (municipio_id);
-
 -- Tarifas de envío con vigencia (hoy: $10.000 en los tres municipios)
 CREATE TABLE tarifas (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -245,8 +230,8 @@ CREATE TABLE comercios (
   direccion         text NOT NULL,
   detalle           text,                            -- local, bodega, piso, a quién preguntar
   municipio_id      text NOT NULL REFERENCES municipios(id),
-  punto             geography(Point, 4326),          -- dirección geocodificada (la pone el backend)
-  localidad_id      text REFERENCES localidades(id),
+  punto             geography(Point, 4326),          -- coordenadas de la dirección (las pone el backend)
+  place_id          text,                            -- Place ID de Google Maps
   creado            timestamptz NOT NULL DEFAULT now(),
   actualizado       timestamptz NOT NULL DEFAULT now()
 );
@@ -269,10 +254,10 @@ CREATE TABLE pedidos (
   destinatario_telefono text NOT NULL CHECK (destinatario_telefono ~ '^[0-9]{7,10}$'),
   direccion             text NOT NULL,
   notas                 text,
-  -- Ubicación: el municipio lo elige el comercio; punto, localidad y zona los pone el backend
+  -- Ubicación: el municipio lo elige el comercio; coordenadas, place_id y zona los pone el backend
   municipio_id          text NOT NULL REFERENCES municipios(id),
   punto                 geography(Point, 4326),        -- dirección geocodificada
-  localidad_id          text REFERENCES localidades(id),
+  place_id              text,                          -- Place ID de Google Maps
   zona_id               text REFERENCES zonas_reparto(id),
   fuera_de_zona         boolean NOT NULL DEFAULT false, -- quedó en un hueco: revisar
   -- Dinero
@@ -296,7 +281,6 @@ CREATE INDEX pedidos_comercio_idx   ON pedidos (comercio_id, creado DESC);
 CREATE INDEX pedidos_repartidor_idx ON pedidos (repartidor_id, programado_para) WHERE repartidor_id IS NOT NULL;
 CREATE INDEX pedidos_activos_idx    ON pedidos (estado) WHERE estado IN ('por_recoger', 'recogido', 'en_camino');
 CREATE INDEX pedidos_zona_dia_idx   ON pedidos (zona_id, programado_para);
-CREATE INDEX pedidos_localidad_idx  ON pedidos (localidad_id, creado);
 CREATE INDEX pedidos_punto_idx      ON pedidos USING gist (punto);
 CREATE TRIGGER t_pedidos_act BEFORE UPDATE ON pedidos FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
@@ -602,13 +586,6 @@ RETURNS TABLE (id text, nombre text, dentro boolean) LANGUAGE sql STABLE AS $$
   LIMIT 1
 $$;
 
-CREATE FUNCTION localidad_para_punto(lat double precision, lon double precision)
-RETURNS text LANGUAGE sql STABLE AS $$
-  SELECT l.id FROM localidades l
-  WHERE ST_Covers(l.geom, ST_SetSRID(ST_MakePoint(lon, lat), 4326))
-  LIMIT 1
-$$;
-
 -- Repartidor sugerido: de los que atienden la zona, activo y con jornada abierta, el de menos pedidos activos
 CREATE FUNCTION repartidor_sugerido(p_zona text) RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT zr.repartidor_id
@@ -622,7 +599,7 @@ CREATE FUNCTION repartidor_sugerido(p_zona text) RETURNS uuid LANGUAGE sql STABL
   LIMIT 1
 $$;
 
--- Al crear un pedido: tarifa vigente, localidad, zona y repartidor (si hay punto geocodificado)
+-- Al crear un pedido: tarifa vigente, zona y repartidor (si hay punto geocodificado)
 CREATE FUNCTION pedido_al_crear() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE z record; lat double precision; lon double precision;
 BEGIN
@@ -636,7 +613,6 @@ BEGIN
   END IF;
   IF NEW.punto IS NOT NULL THEN
     lat := ST_Y(NEW.punto::geometry); lon := ST_X(NEW.punto::geometry);
-    NEW.localidad_id := coalesce(NEW.localidad_id, localidad_para_punto(lat, lon));
     IF NEW.zona_id IS NULL THEN
       SELECT * INTO z FROM zona_para_punto(lat, lon);
       NEW.zona_id := z.id; NEW.fuera_de_zona := NOT coalesce(z.dentro, false);
@@ -725,12 +701,13 @@ FROM comercios c
 LEFT JOIN pedidos p ON p.comercio_id = c.id
 GROUP BY c.id;
 
--- Demanda por localidad (capa "Calor" del mapa)
-CREATE VIEW v_demanda_localidad AS
-SELECT l.id AS localidad_id, l.nombre, l.municipio_id, p.programado_para AS dia, count(p.id) AS pedidos
-FROM localidades l
-JOIN pedidos p ON p.localidad_id = l.id
-GROUP BY l.id, l.nombre, l.municipio_id, p.programado_para;
+-- Demanda en el mapa (capa "Calor"): solo coordenadas; el mapa las agrupa
+CREATE VIEW v_demanda_puntos AS
+SELECT p.programado_para AS dia, p.zona_id,
+       round(ST_Y(p.punto::geometry)::numeric, 5) AS lat,
+       round(ST_X(p.punto::geometry)::numeric, 5) AS lon
+FROM pedidos p
+WHERE p.punto IS NOT NULL AND p.estado <> 'cancelado';
 
 -- Cobertura de zonas: "faltan N repartidores"
 CREATE VIEW v_cobertura_zonas AS
