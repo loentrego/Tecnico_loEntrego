@@ -27,7 +27,7 @@
 
   // ---------- Qué guarda cada tabla ----------
   const DESC = {
-    usuarios: 'Todas las personas que entran: admin, comercio o repartidor. Usuario, clave (hash), nombre, celular y tema.',
+    usuarios: 'Las cuentas de acceso: admin, comercio o repartidor. El comercio es solo su cuenta, sin dueño ni responsable. Usuario, clave (hash), nombre, celular y tema.',
     sesiones: 'Una por dispositivo. Guarda el hash del token de refresco y cuándo vence o se revocó.',
     intentos_ingreso: 'Cada intento de inicio de sesión, exitoso o no. Sirve para bloquear fuerza bruta.',
     suscripciones_push: 'Suscripciones Web Push de la AppWeb para mandar notificaciones.',
@@ -39,8 +39,8 @@
     comercios: 'Comercios, ecommerce y entidades públicas que envían con LoEntrego, con su cuenta para liquidar.',
     metricas_comercio_dia: 'Números de cada comercio por día: pedidos, entregados, recaudo, tarifas y tiempo de entrega.',
     metricas_repartidor_dia: 'Números de cada repartidor por día: entregas, efectivo cobrado, horas conectado y calificación.',
-    repartidores: 'Datos del repartidor: documento, vehículo, placa, estado y cuenta para pagarle.',
-    documentos_repartidor: 'Cédula, licencia, SOAT y tecnomecánica, con fecha de vencimiento.',
+    repartidores: 'Datos del repartidor: documento, estado, fecha de ingreso y contacto de emergencia.',
+    documentos_repartidor: 'Cédula y antecedentes, con fecha de vencimiento.',
     jornadas: 'Cuándo empezó y terminó a trabajar cada repartidor. No se guarda su ubicación.',
     intercambios: 'Solicitudes para pasar una zona o un pedido de un repartidor a otro.',
     pedidos: 'Cada envío: destinatario, dirección, municipio, zona, cobro contraentrega, tarifa, repartidor y estado.',

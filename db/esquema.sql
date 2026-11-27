@@ -42,7 +42,6 @@ CREATE TYPE motivo_no_entrega AS ENUM ('no_contesta', 'direccion', 'rechazado', 
 CREATE TYPE tipo_comercio AS ENUM ('comercio', 'ecommerce', 'sector_publico');
 CREATE TYPE estado_comercio AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_repartidor AS ENUM ('en_proceso', 'activo', 'suspendido', 'retirado');
-CREATE TYPE tipo_vehiculo AS ENUM ('moto', 'bicicleta', 'carro', 'a_pie');
 CREATE TYPE tipo_documento AS ENUM ('cc', 'ce', 'ppt', 'pasaporte');
 
 -- Tipos de territorio (localidades de Bogotá, comunas de Soacha, cuadrantes de Funza…)
@@ -85,7 +84,7 @@ CREATE TABLE usuarios (
   rol             rol_usuario NOT NULL,
   usuario         citext NOT NULL UNIQUE,            -- con lo que entra (demo, repartidor, admin…)
   clave_hash      text NOT NULL,                     -- crypt(clave, gen_salt('bf')) o argon2 desde el backend
-  nombre          text NOT NULL,
+  nombre          text NOT NULL,                     -- nombre del comercio, del repartidor o del admin
   celular         text CHECK (celular ~ '^3[0-9]{9}$'),   -- celular colombiano, solo dígitos
   correo          citext UNIQUE,
   foto_id         uuid REFERENCES archivos(id),
@@ -174,24 +173,21 @@ CREATE TABLE repartidores (
   usuario_id        uuid PRIMARY KEY REFERENCES usuarios(id),   -- 1 a 1 con su usuario
   tipo_documento    tipo_documento NOT NULL DEFAULT 'cc',
   documento         text NOT NULL,
-  vehiculo          tipo_vehiculo NOT NULL DEFAULT 'moto',
-  placa             text,
   estado            estado_repartidor NOT NULL DEFAULT 'en_proceso',
   fecha_ingreso     date,
   contacto_emergencia_nombre   text,
   contacto_emergencia_celular  text,
   creado            timestamptz NOT NULL DEFAULT now(),
   actualizado       timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tipo_documento, documento),
-  CHECK (vehiculo IN ('bicicleta', 'a_pie') OR placa IS NOT NULL OR estado = 'en_proceso')
+  UNIQUE (tipo_documento, documento)
 );
 CREATE TRIGGER t_repartidores_act BEFORE UPDATE ON repartidores FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
--- Documentos del repartidor (cédula, licencia, SOAT, tecnomecánica) con vencimiento
+-- Documentos del repartidor (cédula, antecedentes) con vencimiento
 CREATE TABLE documentos_repartidor (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   repartidor_id   uuid NOT NULL REFERENCES repartidores(usuario_id) ON DELETE CASCADE,
-  tipo            text NOT NULL CHECK (tipo IN ('cedula', 'licencia', 'soat', 'tecnomecanica', 'antecedentes', 'otro')),
+  tipo            text NOT NULL CHECK (tipo IN ('cedula', 'antecedentes', 'otro')),
   archivo_id      uuid NOT NULL REFERENCES archivos(id),
   vence           date,
   verificado_por  uuid REFERENCES usuarios(id),
@@ -240,8 +236,7 @@ CREATE INDEX zona_repartidores_rep_idx ON zona_repartidores (repartidor_id);
 --  6. COMERCIOS
 -- =====================================================================
 CREATE TABLE comercios (
-  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  usuario_id        uuid NOT NULL UNIQUE REFERENCES usuarios(id),   -- 1 a 1 con su usuario (igual que repartidores)
+  id                uuid PRIMARY KEY REFERENCES usuarios(id),   -- el mismo id de su cuenta de acceso; no se guarda dueño ni responsable
   nombre            text NOT NULL,                   -- nombre comercial
   tipo              tipo_comercio NOT NULL DEFAULT 'comercio',
   estado            estado_comercio NOT NULL DEFAULT 'activo',
@@ -458,7 +453,6 @@ CREATE TABLE postulaciones_repartidor (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre        text NOT NULL,
   celular       text NOT NULL,
-  vehiculo      tipo_vehiculo,
   municipio_id  text REFERENCES municipios(id),
   mensaje       text,
   estado        estado_solicitud NOT NULL DEFAULT 'nueva',
@@ -729,7 +723,7 @@ GROUP BY programado_para;
 
 -- Por repartidor
 CREATE VIEW v_repartidores AS
-SELECT r.usuario_id AS repartidor_id, u.nombre, r.estado, r.vehiculo,
+SELECT r.usuario_id AS repartidor_id, u.nombre, r.estado,
        count(p.id) FILTER (WHERE p.estado = 'entregado')                         AS entregas,
        count(p.id) FILTER (WHERE p.estado = 'no_entregado')                      AS no_entregas,
        count(p.id) FILTER (WHERE p.estado IN ('por_recoger', 'recogido', 'en_camino')) AS activos,
@@ -738,7 +732,7 @@ SELECT r.usuario_id AS repartidor_id, u.nombre, r.estado, r.vehiculo,
 FROM repartidores r
 JOIN usuarios u ON u.id = r.usuario_id
 LEFT JOIN pedidos p ON p.repartidor_id = r.usuario_id
-GROUP BY r.usuario_id, u.nombre, r.estado, r.vehiculo;
+GROUP BY r.usuario_id, u.nombre, r.estado;
 
 -- Por comercio
 CREATE VIEW v_comercios AS

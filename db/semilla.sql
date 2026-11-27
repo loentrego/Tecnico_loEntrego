@@ -36,10 +36,10 @@ INSERT INTO usuarios (rol, usuario, clave_hash, nombre, celular) VALUES
   ('comercio',   'demo',       crypt('demo123',   gen_salt('bf')), 'Tienda Demo',           '3001112233'),
   ('repartidor', 'repartidor', crypt('reparto123', gen_salt('bf')), 'Carlos Repartidor',    '3104445566');
 
-INSERT INTO comercios (usuario_id, nombre, tipo, celular, direccion, detalle, municipio_id)
+INSERT INTO comercios (id, nombre, tipo, celular, direccion, detalle, municipio_id)
 SELECT id, 'Tienda Demo', 'ecommerce', '3001112233', 'Calle 80 #15-20', 'Bodega', 'bogota' FROM usuarios WHERE usuario = 'demo';
 
-INSERT INTO repartidores (usuario_id, documento, vehiculo, placa, estado, fecha_ingreso)
-SELECT id, '1012345678', 'moto', 'ABC12D', 'activo', '2026-01-15' FROM usuarios WHERE usuario = 'repartidor';
+INSERT INTO repartidores (usuario_id, documento, estado, fecha_ingreso)
+SELECT id, '1012345678', 'activo', '2026-01-15' FROM usuarios WHERE usuario = 'repartidor';
 
 COMMIT;

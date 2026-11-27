@@ -113,7 +113,6 @@ window.ENTRADAS = (() => {
         ['id', 'uuid', true, 'r1', ''],
         ['nombre', 'texto', true, 'Camilo Restrepo', ''],
         ['estado', 'texto', true, 'activo', ''],
-        ['vehiculo', 'texto', true, 'moto', ''],
         ['zonas[]', 'lista', true, ['Chapinero'], ''],
         ['entregas', 'entero', true, 96, 'En el periodo'],
         ['no_entregas', 'entero', true, 4, ''],
