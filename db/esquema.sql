@@ -50,7 +50,6 @@ CREATE TYPE tipo_territorio AS ENUM ('localidad', 'comuna', 'cuadrante', 'rural'
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
 CREATE TYPE estado_liquidacion AS ENUM ('borrador', 'aprobada', 'pagada', 'anulada');
 CREATE TYPE estado_cierre AS ENUM ('abierto', 'cuadrado', 'con_diferencia');
-CREATE TYPE estado_intercambio AS ENUM ('pendiente', 'aprobado', 'rechazado', 'cancelado');
 CREATE TYPE canal_notificacion AS ENUM ('push', 'correo');
 CREATE TYPE estado_envio AS ENUM ('pendiente', 'enviado', 'fallido');
 CREATE TYPE red_social AS ENUM ('google', 'instagram', 'facebook');
@@ -312,7 +311,8 @@ CREATE TABLE pedido_eventos (
 );
 CREATE INDEX pedido_eventos_idx ON pedido_eventos (pedido_id, ocurrido);
 
--- Asignaciones: quién tuvo el pedido y desde cuándo (auto o manual, incluye intercambios)
+-- Asignaciones: quién tuvo el pedido y desde cuándo. Se llena sola al cambiar pedidos.repartidor_id
+-- (el intercambio del panel solo cambia ese campo; el backend pone loentrego.modo_asignacion = 'intercambio')
 CREATE TABLE asignaciones (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   pedido_id       uuid NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
@@ -345,23 +345,6 @@ CREATE TABLE calificaciones (
   UNIQUE (pedido_id, autor)
 );
 CREATE INDEX calificaciones_rep_idx ON calificaciones (repartidor_id, creado);
-
--- Intercambio de repartidor (panel admin → Intercambio)
-CREATE TABLE intercambios (
-  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  repartidor_origen   uuid NOT NULL REFERENCES repartidores(usuario_id),
-  repartidor_destino  uuid NOT NULL REFERENCES repartidores(usuario_id),
-  zona_id             text REFERENCES zonas_reparto(id),   -- intercambio de zona completa…
-  pedido_id           uuid REFERENCES pedidos(id),         -- …o de un pedido puntual
-  motivo              text,
-  estado              estado_intercambio NOT NULL DEFAULT 'pendiente',
-  solicitado_por      uuid NOT NULL REFERENCES usuarios(id),
-  resuelto_por        uuid REFERENCES usuarios(id),
-  creado              timestamptz NOT NULL DEFAULT now(),
-  resuelto_en         timestamptz,
-  CHECK (repartidor_origen <> repartidor_destino),
-  CHECK ((zona_id IS NULL) <> (pedido_id IS NULL))
-);
 
 -- =====================================================================
 --  8. DINERO: recaudo contraentrega, cierres de caja y liquidaciones

@@ -708,8 +708,8 @@ window.ENTRADAS = (() => {
         {
           id: 'adm-intercambio', nombre: 'Intercambio de repartidor', archivo: 'Pages/paneladmin.html',
           controles: [
-            ['lista (select)', 'Repartidor actual', 'repartidor_origen', 'Obligatorio', 'intercambio'],
-            ['lista (select)', 'Nuevo repartidor', 'repartidor_destino', 'Obligatorio · distinto al actual', 'intercambio'],
+            ['lista (select)', 'Repartidor actual', '—', 'Solo para filtrar sus paquetes', 'pedidos-de'],
+            ['lista (select)', 'Nuevo repartidor', 'repartidor_id', 'Obligatorio · distinto al actual', 'intercambio'],
             ['lista (select)', 'Paquete', 'pedido_id', 'Pedidos activos del repartidor actual', 'pedidos-de'],
             ['botón', 'Intercambiar repartidor', '—', 'Pide confirmar', 'intercambio'],
           ],
@@ -720,16 +720,13 @@ window.ENTRADAS = (() => {
               recibe: [['pedidos[]', 'PedidoResumen', true, null, 'Solo por_recoger, recogido y en_camino']], tablas: 'pedidos', errores: [],
             },
             {
-              id: 'intercambio', nombre: 'Intercambiar repartidor', metodo: 'POST', ruta: '/api/admin/intercambios', auth,
+              id: 'intercambio', nombre: 'Intercambiar repartidor', metodo: 'PATCH', ruta: '/api/admin/pedidos/{id}/repartidor', auth,
               cuando: 'Al confirmar.',
               envia: [
-                ['repartidor_origen', 'uuid', true, 'r1', ''],
-                ['repartidor_destino', 'uuid', true, 'r2', ''],
-                ['pedido_id', 'uuid', true, 'a41f…', 'Un paquete (o zona_id para la zona completa)'],
-                ['motivo', 'texto', false, 'Moto varada', ''],
+                ['repartidor_id', 'uuid', true, 'r2', 'El nuevo repartidor. El pedido va en la ruta'],
               ],
-              recibe: [['id', 'uuid', true, '77ee…', ''], ['estado', 'texto', true, 'aprobado', ''], ['pedido', 'PedidoResumen', true, null, '']],
-              tablas: 'intercambios, pedidos, asignaciones (modo intercambio)', errores: [['409', 'El paquete ya se entregó']],
+              recibe: [['pedido', 'PedidoResumen', true, null, 'Con el nuevo repartidor']],
+              tablas: 'pedidos (solo cambia repartidor_id), asignaciones (se llena sola, modo intercambio)', errores: [['409', 'El paquete ya se entregó']],
             },
           ],
         },
