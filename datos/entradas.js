@@ -9,7 +9,7 @@
 //    · tipo puede ser el nombre de una estructura compartida (TIPOS)
 //  Controles: [tipo, etiqueta, campo JSON, regla, llamada]
 //    · llamada: id de la llamada a la API, o 'local' si no sale del navegador,
-//      o 'externo' si abre otra app (WhatsApp, teléfono, correo, mapas)
+//      o 'externo' si abre otra app (teléfono, correo, Instagram, mapas)
 // =====================================================================
 window.ENTRADAS = (() => {
   'use strict';
@@ -139,7 +139,6 @@ window.ENTRADAS = (() => {
             ['botón', 'Copiar correo', '—', 'Copia al portapapeles', 'local'],
             ['botón', 'Copiar teléfono', '—', 'Copia al portapapeles', 'local'],
             ['botón', 'Copiar ubicación', '—', 'Copia al portapapeles', 'local'],
-            ['enlace', 'WhatsApp (pie y botón flotante)', '—', 'wa.me con mensaje', 'externo'],
           ],
           llamadas: [],
         },
@@ -197,7 +196,7 @@ window.ENTRADAS = (() => {
               ],
               recibe: [
                 ['id', 'uuid', true, '5b2e…', ''],
-                ['mensaje', 'texto', true, '¡Listo! Te escribimos por WhatsApp en menos de un día hábil.', 'Para mostrar'],
+                ['mensaje', 'texto', true, '¡Listo! Te escribimos en menos de un día hábil.', 'Para mostrar'],
               ],
               tablas: 'solicitudes_comercio', errores: [['422', 'Campo inválido (llega "campos")'], ['429', 'Demasiados envíos desde la misma IP']],
             },
@@ -206,13 +205,12 @@ window.ENTRADAS = (() => {
         {
           id: 'web-contacto', nombre: 'Contacto', archivo: 'Pages/indexcontacto.html',
           controles: [
-            ['enlace', 'Escríbenos por WhatsApp', '—', 'wa.me', 'externo'],
             ['botón', 'Copiar correo de ventas / soporte / tecnología / general', '—', 'Copia al portapapeles', 'local'],
             ['enlace', 'ventas@ · soporte@ · dev@ · contacto@', '—', 'mailto:', 'externo'],
             ['botón', 'Alejar / Acercar mapa de ubicación', '—', 'Zoom', 'local'],
           ],
           llamadas: [],
-          nota: 'Contacto no tiene formulario: todo va por WhatsApp o correo. La tabla mensajes_contacto queda lista por si se agrega uno.',
+          nota: 'Contacto no tiene formulario: todo va por correo y redes. La tabla mensajes_contacto queda lista por si se agrega uno.',
         },
       ],
     },
@@ -414,7 +412,6 @@ window.ENTRADAS = (() => {
           id: 'app-trabajo', nombre: 'Repartidor · Trabajo y novedad', archivo: 'Pages/Pages-repartidor.html (hojas del trabajo y "No se pudo entregar")',
           controles: [
             ['enlace', 'Llamar', '—', 'tel:', 'externo'],
-            ['enlace', 'WhatsApp', '—', 'wa.me', 'externo'],
             ['enlace', 'Cómo llegar (Maps)', '—', 'Google Maps con la dirección', 'externo'],
             ['deslizador', 'Desliza: Ya lo recogí / Voy en camino / Lo entregué', 'estado', 'Avanza un paso; Enter o Espacio también confirman', 'estado'],
             ['botón', 'No se pudo entregar', '—', 'Abre la hoja de novedad', 'local'],
@@ -751,9 +748,8 @@ window.ENTRADAS = (() => {
             ['opción (chips)', 'Tienda o local · Tienda en línea · Entidad pública', 'tipo', 'comercio · ecommerce · sector_publico', 'registro-comercio'],
             ['texto', 'Dirección de recogida', 'direccion', 'Obligatorio · 5 a 120 caracteres', 'registro-comercio'],
             ['opción (segmentos)', 'Municipio donde estás: Bogotá · Funza · Soacha', 'municipio', 'Una opción', 'registro-comercio'],
-            ['número', 'Pedidos al día (aproximado)', 'pedidos_diarios', 'Obligatorio · entero de 1 a 10.000', 'registro-comercio'],
-            ['teléfono', 'Celular', 'celular', '10 dígitos, empieza por 3 (se formatea 300 123 4567)', 'registro-comercio'],
-            ['correo', 'Correo', 'correo', 'Correo válido', 'registro-comercio'],
+            ['teléfono', 'Celular', 'celular', '10 dígitos, empieza por 3 · aviso: debe tener WhatsApp', 'registro-comercio'],
+            ['correo', 'Correo', 'correo', 'Correo válido · aviso: que lo revise seguido (Gmail, Outlook o de su dominio)', 'registro-comercio'],
             ['texto', 'Usuario', 'usuario', '4 a 40: minúsculas, números, punto, guion', 'registro-comercio'],
             ['contraseña', 'Contraseña (con ojo y barrita de fuerza)', 'password', 'Mínimo 8 caracteres', 'registro-comercio'],
             ['casilla', 'Acepto el tratamiento de mis datos', 'acepta_datos', 'Obligatoria', 'registro-comercio'],
@@ -776,7 +772,6 @@ window.ENTRADAS = (() => {
                 ['tipo', 'texto', true, 'ecommerce', ''],
                 ['direccion', 'texto', true, 'Cra 15 #93-45', ''],
                 ['municipio', 'texto', true, 'funza', ''],
-                ['pedidos_diarios', 'entero', true, 20, ''],
                 ['celular', 'texto', true, '3001234567', 'Solo dígitos'],
                 ['correo', 'texto', true, 'hola@laespiga.co', ''],
                 ['usuario', 'texto', true, 'laespiga', ''],
@@ -795,13 +790,13 @@ window.ENTRADAS = (() => {
             ['texto', 'Nombre completo', 'nombre', 'Nombre y apellido', 'registro-repartidor'],
             ['lista (select)', 'Documento: C.C. · C.E. · PPT · Pasaporte', 'tipo_documento', 'cc · ce · ppt · pasaporte', 'registro-repartidor'],
             ['texto', 'Número de documento', 'documento', '5 a 15 letras o números', 'registro-repartidor'],
-            ['teléfono', 'Celular (con WhatsApp)', 'celular', '10 dígitos, empieza por 3', 'registro-repartidor'],
-            ['correo', 'Correo', 'correo', 'Correo válido', 'registro-repartidor'],
+            ['teléfono', 'Celular', 'celular', '10 dígitos, empieza por 3 · aviso: debe tener WhatsApp', 'registro-repartidor'],
+            ['correo', 'Correo', 'correo', 'Correo válido · aviso: que lo revise seguido (Gmail, Outlook o de su dominio)', 'registro-repartidor'],
             ['texto', 'Usuario', 'usuario', '4 a 40: minúsculas, números, punto, guion', 'registro-repartidor'],
             ['contraseña', 'Contraseña (con ojo y barrita de fuerza)', 'password', 'Mínimo 8 caracteres', 'registro-repartidor'],
             ['casilla', 'Acepto el tratamiento de mis datos', 'acepta_datos', 'Obligatoria', 'registro-repartidor'],
             ['botón (enviar)', 'Crear mi cuenta', '—', 'Valida todo y envía', 'registro-repartidor'],
-            ['enlace', 'Escríbenos por WhatsApp · Abrir la app', '—', '', 'externo'],
+            ['enlace', 'contacto@loentrego.com · Abrir la app', '—', '', 'externo'],
           ],
           llamadas: [
             {
@@ -832,7 +827,7 @@ window.ENTRADAS = (() => {
             ['parada', 'Comercio: Cotiza tu envío · Registra tu comercio · Cómo funciona · Entra a la app', '—', 'Instagram (mensaje directo), web y app', 'externo'],
             ['parada', 'Repartidor: Quiero repartir · Conoce LoEntrego · Entra a la app', '—', 'Instagram (mensaje directo), web y app', 'externo'],
             ['parada', 'Cliente: ¿Dónde va mi pedido? · Califica tu entrega · ¿Tienes un negocio?', '—', 'Instagram con el código LOE-, Google y web', 'externo'],
-            ['enlace (ícono)', 'Instagram · Facebook', '—', 'WhatsApp aún no está activo', 'externo'],
+            ['enlace (ícono)', 'Instagram · Facebook', '—', '', 'externo'],
           ],
           llamadas: [],
           nota: 'No llama a la API: los enlaces se editan en la lista ENLACES de links/script.js.',
@@ -848,7 +843,6 @@ window.ENTRADAS = (() => {
           id: 'mant-pagina', nombre: 'Volvemos pronto', archivo: 'index.html',
           controles: [
             ['botón', 'Reintentar ahora', '—', 'Recarga la página (sin recargas automáticas)', 'canales'],
-            ['enlace', 'Escríbenos por WhatsApp', '—', 'wa.me', 'externo'],
             ['enlace', 'contacto@loentrego.com', '—', 'mailto:', 'externo'],
             ['indicador', 'Regreso estimado + cuenta regresiva', 'regreso', 'Hora de Colombia', 'canales'],
             ['lista', 'Estado de cada canal (4)', 'canales', 'ok · warn · fail', 'canales'],
@@ -878,11 +872,10 @@ window.ENTRADAS = (() => {
     ['GET', '/api/salud', 'Monitoreo', 'Responde si la API y la base están arriba.', '—'],
     ['POST', '/api/refrescar', 'AppWeb · Panel', 'Cambia el token de refresco por uno nuevo cuando el de acceso vence.', 'sesiones'],
     ['POST', '/api/push', 'AppWeb', 'Guarda la suscripción de notificaciones del dispositivo.', 'suscripciones_push'],
-    ['POST', '/api/publico/calificar/:token', 'Cliente final', 'Califica la entrega desde el enlace de WhatsApp.', 'calificaciones'],
+    ['POST', '/api/publico/calificar/:token', 'Cliente final', 'Califica la entrega desde el enlace que recibe.', 'calificaciones'],
     ['POST', '/api/admin/cierres', 'Admin', 'Registra lo que entregó el repartidor al cerrar caja.', 'cierres_caja'],
     ['POST', '/api/admin/liquidaciones', 'Admin', 'Arma, aprueba y marca como pagada una liquidación.', 'liquidaciones, liquidacion_pedidos'],
     ['PUT', '/api/admin/canales', 'Admin', 'Cambia lo que muestra la página de mantenimiento.', 'estado_canales, mantenimientos'],
-    ['POST', '/webhooks/whatsapp', 'Meta', 'Estado de los mensajes enviados (entregado, leído, fallido).', 'notificaciones'],
   ];
 
   return { TIPOS, FRONTS, EXTRA };

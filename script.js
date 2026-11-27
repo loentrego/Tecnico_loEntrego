@@ -19,7 +19,7 @@
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
     { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'postulaciones_repartidor', 'mensajes_contacto', 'enlaces_registro', 'registros_por_enlace'], txt: 'Formularios de la web y enlaces de registro del panel.' },
     { id: 'redes', nombre: 'Redes y reputación', color: '#D63A4C', tablas: ['metricas_redes', 'resenas'], txt: 'Google Business, Instagram y Facebook para el Resumen.' },
-    { id: 'notificaciones', nombre: 'Notificaciones', color: '#12092E', tablas: ['plantillas', 'notificaciones'], txt: 'WhatsApp, push, SMS y correo, con su estado de envío.' },
+    { id: 'notificaciones', nombre: 'Notificaciones', color: '#12092E', tablas: ['plantillas', 'notificaciones'], txt: 'Push y correo, con su estado de envío.' },
     { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['archivos', 'estado_canales', 'mantenimientos', 'ajustes', 'auditoria'], txt: 'Archivos, página de mantenimiento, ajustes y auditoría.' },
   ];
   const areaDe = {};
@@ -59,12 +59,12 @@
     registros_por_enlace: 'Quién se registró con cada enlace.',
     metricas_redes: 'Una foto diaria de cada red: seguidores, alcance, interacciones y calificación.',
     resenas: 'Reseñas públicas de Google y Facebook, con su respuesta.',
-    plantillas: 'Textos de los mensajes (WhatsApp, correo…) con variables.',
+    plantillas: 'Textos de los mensajes (push y correo) con variables.',
     notificaciones: 'Cada mensaje enviado o por enviar, con su estado y el id del proveedor.',
     archivos: 'Ficha de cada archivo guardado en el almacenamiento de objetos.',
     estado_canales: 'Lo que muestra la página de mantenimiento para cada canal.',
     mantenimientos: 'Ventanas de mantenimiento con su hora estimada de regreso.',
-    ajustes: 'Valores generales: pago por entrega, horario, WhatsApp de atención.',
+    ajustes: 'Valores generales: pago por entrega, horario, correo de contacto.',
     auditoria: 'Quién cambió qué, con el antes y el después.',
   };
 

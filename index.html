@@ -84,8 +84,7 @@
         <div class="arq-arrow" aria-hidden="true"></div>
         <div class="arq-col">
           <p class="arq-t">Servicios externos</p>
-          <div class="arq-box is-ext">WhatsApp Cloud API</div>
-          <div class="arq-box is-ext">Geocodificación</div>
+                    <div class="arq-box is-ext">Geocodificación</div>
           <div class="arq-box is-ext">Almacenamiento de objetos</div>
           <div class="arq-box is-ext">Correo · Google · Meta</div>
         </div>
@@ -166,7 +165,7 @@ rm /srv/loentrego/mantenimiento/app.on
             <tr><td><b>PostgreSQL</b></td><td>16</td><td>La base de datos de todo el ecosistema.</td><td><code>postgresql postgresql-contrib</code></td></tr>
             <tr><td><b>PostGIS</b></td><td>3.4</td><td>Zonas de reparto, localidades y puntos de entrega. Asigna el pedido a la zona correcta.</td><td><code>postgresql-16-postgis-3</code></td></tr>
             <tr><td><b>GDAL (ogr2ogr)</b></td><td>3.8</td><td>Importa zonas y localidades desde GeoJSON o shapefile.</td><td><code>gdal-bin</code></td></tr>
-            <tr><td><b>Redis</b></td><td>7</td><td>Cola de notificaciones (WhatsApp, push) y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
+            <tr><td><b>Redis</b></td><td>7</td><td>Cola de notificaciones (push y correo) y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
             <tr><th colspan="4" class="grupo">Aplicación</th></tr>
             <tr><td><b>Node.js</b></td><td>22 LTS</td><td>Corre la API.</td><td><code>nodejs</code> (NodeSource)</td></tr>
             <tr><td><b>systemd</b></td><td>—</td><td>Arranca la API con el servidor y la reinicia si se cae (<code>loentrego-api.service</code>).</td><td>incluido</td></tr>
@@ -212,7 +211,6 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <article class="svc"><span class="svc-tag">Servidor</span><h4>Bluehost (VPS)</h4><p>2 vCPU, 4 GB de RAM y 100 GB. Aquí está todo lo que usa la gente: los 4 frontends, Nginx, la API, PostgreSQL y Redis.</p><small>Acceso: SSH con llave</small></article>
         <article class="svc"><span class="svc-tag">Dominio y DNS</span><h4>Namecheap</h4><p>Dominio <code>loentrego.com</code>. Registros A de <code>@</code>, <code>www</code>, <code>app</code> y <code>admin</code> → IP del VPS, y MX, SPF, DKIM y DMARC del correo.</p><small>Variable: —</small></article>
         <article class="svc"><span class="svc-tag">Código y despliegue</span><h4>GitHub</h4><p>Organiza el código de los 5 repositorios. Con cada push a <code>main</code>, GitHub Actions copia los archivos al VPS. GitHub Pages solo publica el mockup con datos ficticios.</p><small>Secretos: <code>VPS_HOST</code> · <code>VPS_SSH_KEY</code> · <code>VPS_KNOWN</code></small></article>
-        <article class="svc"><span class="svc-tag">Notificaciones</span><h4>WhatsApp Business Cloud API (Meta)</h4><p>Avisos al cliente final: "va en camino", "entregado", "no pudimos entregar". Plantillas aprobadas por Meta.</p><small><code>WA_TOKEN</code> · <code>WA_PHONE_ID</code> · <code>WA_VERIFY</code></small></article>
         <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en un punto para asignar zona y localidad. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
         <article class="svc"><span class="svc-tag">Archivos</span><h4>Cloudflare R2 o Backblaze B2</h4><p>Fotos de evidencia, documentos de repartidores, soportes de pago y los respaldos cifrados de la base.</p><small><code>S3_ENDPOINT</code> · <code>S3_KEY</code> · <code>S3_SECRET</code></small></article>
         <article class="svc"><span class="svc-tag">Correo</span><h4>Amazon SES o Brevo</h4><p>Correos automáticos: confirmación de solicitudes, liquidaciones y recuperar clave. Con SPF, DKIM y DMARC.</p><small><code>SMTP_URL</code></small></article>
@@ -230,9 +228,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
       <h3 class="h3">Opcionales (cuando crezca)</h3>
       <div class="grid-3">
-        <article class="svc is-opt"><span class="svc-tag">Pagos en línea</span><h4>Wompi</h4><p>Links de pago y PSE para que el cliente pague antes de la entrega en vez de contraentrega.</p></article>
         <article class="svc is-opt"><span class="svc-tag">Protección</span><h4>Cloudflare (plan gratis)</h4><p>Si hay ataques o mucho tráfico: se cambian los nameservers en Namecheap a Cloudflare y queda delante del VPS.</p></article>
-        <article class="svc is-opt"><span class="svc-tag">SMS</span><h4>Twilio o Hablame</h4><p>Respaldo si el cliente no tiene WhatsApp.</p></article>
         <article class="svc is-opt"><span class="svc-tag">Facturación</span><h4>Proveedor de factura electrónica DIAN</h4><p>Facturas de las tarifas de envío a los comercios.</p></article>
       </div>
     </section>
@@ -266,7 +262,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <h3 class="h3">Cómo leer cada pantalla</h3>
       <div class="grid-3">
         <article class="trait"><b>Diagrama de secuencia</b><p>De izquierda a derecha: la pantalla pide a la API, la API consulta la base y la respuesta vuelve. Un número por llamada.</p></article>
-        <article class="trait"><b>Campos y botones</b><p>Cada control con su campo JSON y su regla. <span class="dest d-local">En el navegador</span> no llama a la API; <span class="dest d-ext">Abre otra app</span> abre WhatsApp, el teléfono, el correo o Maps.</p></article>
+        <article class="trait"><b>Campos y botones</b><p>Cada control con su campo JSON y su regla. <span class="dest d-local">En el navegador</span> no llama a la API; <span class="dest d-ext">Abre otra app</span> abre el teléfono, el correo, Instagram o Maps.</p></article>
         <article class="trait"><b>Envía y recibe</b><p>El JSON de ejemplo y, debajo, campo por campo con su tipo. Las estructuras que se repiten están al final.</p></article>
       </div>
 
@@ -419,8 +415,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=1"></script>
-<script src="datos/entradas.js?v=6"></script>
+<script src="datos/esquema.js?v=3"></script>
+<script src="datos/entradas.js?v=8"></script>
 <script src="script.js?v=4"></script>
 </body>
 </html>

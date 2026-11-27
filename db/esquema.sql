@@ -43,7 +43,7 @@ CREATE TYPE tipo_comercio AS ENUM ('comercio', 'ecommerce', 'sector_publico');
 CREATE TYPE estado_comercio AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_repartidor AS ENUM ('en_proceso', 'activo', 'suspendido', 'retirado');
 CREATE TYPE tipo_vehiculo AS ENUM ('moto', 'bicicleta', 'carro', 'a_pie');
-CREATE TYPE tipo_documento AS ENUM ('cc', 'ce', 'ppt', 'pasaporte', 'nit');
+CREATE TYPE tipo_documento AS ENUM ('cc', 'ce', 'ppt', 'pasaporte');
 
 -- Tipos de territorio (localidades de Bogotá, comunas de Soacha, cuadrantes de Funza…)
 CREATE TYPE tipo_territorio AS ENUM ('localidad', 'comuna', 'cuadrante', 'rural', 'corregimiento');
@@ -52,9 +52,9 @@ CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'desc
 CREATE TYPE estado_liquidacion AS ENUM ('borrador', 'aprobada', 'pagada', 'anulada');
 CREATE TYPE estado_cierre AS ENUM ('abierto', 'cuadrado', 'con_diferencia');
 CREATE TYPE estado_intercambio AS ENUM ('pendiente', 'aprobado', 'rechazado', 'cancelado');
-CREATE TYPE canal_notificacion AS ENUM ('push', 'whatsapp', 'sms', 'correo');
+CREATE TYPE canal_notificacion AS ENUM ('push', 'correo');
 CREATE TYPE estado_envio AS ENUM ('pendiente', 'enviado', 'fallido');
-CREATE TYPE red_social AS ENUM ('google', 'instagram', 'facebook', 'tiktok', 'whatsapp');
+CREATE TYPE red_social AS ENUM ('google', 'instagram', 'facebook');
 CREATE TYPE estado_canal AS ENUM ('ok', 'warn', 'fail');   -- igual que la página de mantenimiento
 
 -- =====================================================================
@@ -180,9 +180,6 @@ CREATE TABLE repartidores (
   fecha_ingreso     date,
   contacto_emergencia_nombre   text,
   contacto_emergencia_celular  text,
-  banco             text,                    -- para pagarle
-  cuenta_tipo       text CHECK (cuenta_tipo IN ('ahorros', 'corriente', 'nequi', 'daviplata')),
-  cuenta_numero     text,
   creado            timestamptz NOT NULL DEFAULT now(),
   actualizado       timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tipo_documento, documento),
@@ -245,17 +242,11 @@ CREATE INDEX zona_repartidores_rep_idx ON zona_repartidores (repartidor_id);
 CREATE TABLE comercios (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre            text NOT NULL,                   -- nombre comercial
-  razon_social      text,
-  nit               text UNIQUE,
   tipo              tipo_comercio NOT NULL DEFAULT 'comercio',
   estado            estado_comercio NOT NULL DEFAULT 'activo',
   celular           text,
   correo            citext,
   pedidos_diarios_estimados int,
-  -- Para liquidarle lo recaudado contraentrega
-  banco             text,
-  cuenta_tipo       text CHECK (cuenta_tipo IN ('ahorros', 'corriente', 'nequi', 'daviplata')),
-  cuenta_numero     text,
   creado            timestamptz NOT NULL DEFAULT now(),
   actualizado       timestamptz NOT NULL DEFAULT now()
 );
@@ -541,7 +532,6 @@ CREATE TABLE metricas_redes (
   alcance         int,
   interacciones   int,
   visitas_perfil  int,
-  clics_whatsapp  int,
   calificacion    numeric(2,1) CHECK (calificacion BETWEEN 1 AND 5),   -- Google
   total_resenas   int,
   datos           jsonb NOT NULL DEFAULT '{}',        -- lo demás que entregue la API
@@ -563,12 +553,11 @@ CREATE TABLE resenas (
 );
 
 -- =====================================================================
---  11. NOTIFICACIONES (WhatsApp, push, SMS, correo)
+--  11. NOTIFICACIONES (push y correo)
 -- =====================================================================
 CREATE TABLE plantillas (
   id          text PRIMARY KEY,                     -- 'pedido_en_camino', 'pedido_entregado', …
   canal       canal_notificacion NOT NULL,
-  nombre_externo text,                              -- nombre aprobado en Meta (WhatsApp)
   cuerpo      text NOT NULL,                        -- con variables {{nombre}}, {{codigo}}…
   activa      boolean NOT NULL DEFAULT true
 );
@@ -613,7 +602,7 @@ CREATE TABLE mantenimientos (
   CHECK (regreso IS NULL OR regreso > inicio)
 );
 
--- Ajustes generales (valor por entrega al repartidor, horario, WhatsApp de atención…)
+-- Ajustes generales (valor por entrega al repartidor, horario, correo de contacto…)
 CREATE TABLE ajustes (
   clave         text PRIMARY KEY,
   valor         jsonb NOT NULL,

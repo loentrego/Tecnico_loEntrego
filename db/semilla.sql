@@ -20,19 +20,15 @@ INSERT INTO estado_canales (canal, estado, texto, orden) VALUES
   ('App LoEntrego', 'ok', 'Activa', 1),
   ('Página web',    'ok', 'Activa', 2),
   ('Operación',     'ok', 'Funcionando', 3),
-  ('Atención',      'ok', 'WhatsApp y correo activos', 4);
+  ('Atención',      'ok', 'Correo activo', 4);
 
 INSERT INTO ajustes (clave, valor, descripcion) VALUES
   ('valor_por_entrega',  '4500',                     'Pago al repartidor por entrega (COP)'),
   ('horario_operacion',  '{"desde":"07:00","hasta":"19:00","dias":[1,2,3,4,5,6]}', 'Horario de recogidas y entregas'),
-  ('whatsapp_atencion',  '"573101234567"',           'Número de WhatsApp de atención'),
   ('correo_contacto',    '"contacto@loentrego.com"', 'Correo de contacto');
 
 INSERT INTO plantillas (id, canal, cuerpo) VALUES
-  ('pedido_en_camino', 'whatsapp', 'Hola {{nombre}}, tu pedido {{codigo}} de {{comercio}} va en camino. Te llega hoy.'),
-  ('pedido_entregado', 'whatsapp', 'Tu pedido {{codigo}} fue entregado. ¿Cómo te fue? Califícanos: {{enlace}}'),
-  ('pedido_no_entregado', 'whatsapp', 'No pudimos entregar tu pedido {{codigo}} ({{motivo}}). Escríbenos para reprogramarlo.'),
-  ('solicitud_recibida', 'correo', 'Recibimos tu solicitud, {{comercio}}. Te escribimos por WhatsApp en menos de un día hábil.');
+  ('solicitud_recibida', 'correo', 'Recibimos tu solicitud, {{comercio}}. Te escribimos en menos de un día hábil.');
 
 -- Usuarios de prueba (los mismos de la demo). ¡Cambiar las claves en producción!
 INSERT INTO usuarios (rol, usuario, clave_hash, nombre, celular) VALUES
