@@ -27,7 +27,7 @@
 
   // ---------- Qué guarda cada tabla ----------
   const DESC = {
-    usuarios: 'Las cuentas de acceso: admin, comercio o repartidor. El comercio es solo su cuenta, sin dueño ni responsable. Usuario, clave (hash), nombre, celular y tema.',
+    usuarios: 'Las cuentas de acceso: admin, comercio o repartidor. El comercio es solo su cuenta, sin dueño ni responsable. Aquí están el usuario, la clave (hash), el nombre, el celular, el correo y las fechas; comercios y repartidores no los repiten.',
     sesiones: 'Una por dispositivo. Guarda el hash del token de refresco y cuándo vence o se revocó.',
     intentos_ingreso: 'Cada intento de inicio de sesión, exitoso o no. Sirve para bloquear fuerza bruta.',
     suscripciones_push: 'Suscripciones Web Push de la AppWeb para mandar notificaciones.',

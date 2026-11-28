@@ -83,14 +83,21 @@ CREATE TABLE usuarios (
   nombre          text NOT NULL,                     -- nombre del comercio, del repartidor o del admin
   celular         text CHECK (celular ~ '^3[0-9]{9}$'),   -- celular colombiano, solo dígitos
   correo          citext UNIQUE,
-  foto_id         uuid REFERENCES archivos(id),
-  tema            text NOT NULL DEFAULT 'auto' CHECK (tema IN ('claro', 'oscuro', 'auto')),
   activo          boolean NOT NULL DEFAULT true,
   ultimo_ingreso  timestamptz,
   creado          timestamptz NOT NULL DEFAULT now(),
   actualizado     timestamptz NOT NULL DEFAULT now()
 );
 CREATE TRIGGER t_usuarios_act BEFORE UPDATE ON usuarios FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
+CREATE INDEX usuarios_nombre_idx ON usuarios (lower(nombre));
+
+-- Comercios y repartidores no repiten nombre, celular, correo ni fechas: todo eso está en usuarios.
+-- Si cambia algo de su tabla, se marca la fecha "actualizado" de su usuario.
+CREATE FUNCTION tocar_usuario() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE usuarios SET actualizado = now() WHERE id = (to_jsonb(NEW) ->> TG_ARGV[0])::uuid;
+  RETURN NULL;
+END $$;
 ALTER TABLE archivos ADD CONSTRAINT archivos_subido_por_fk FOREIGN KEY (subido_por) REFERENCES usuarios(id);
 
 -- Sesiones: un registro por dispositivo con su token de refresco (se guarda el hash, nunca el token)
@@ -160,11 +167,9 @@ CREATE TABLE repartidores (
   estado            estado_repartidor NOT NULL DEFAULT 'en_proceso',
   fecha_ingreso     date,
   contacto_emergencia_nombre   text,
-  contacto_emergencia_celular  text,
-  creado            timestamptz NOT NULL DEFAULT now(),
-  actualizado       timestamptz NOT NULL DEFAULT now()
-);
-CREATE TRIGGER t_repartidores_act BEFORE UPDATE ON repartidores FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
+  contacto_emergencia_celular  text
+);   -- nombre, celular, correo y fechas: en usuarios
+CREATE TRIGGER t_repartidores_act AFTER UPDATE ON repartidores FOR EACH ROW EXECUTE FUNCTION tocar_usuario('usuario_id');
 
 -- Jornadas: cuándo estuvo disponible (no se rastrea su ubicación)
 CREATE TABLE jornadas (
@@ -206,23 +211,17 @@ CREATE INDEX zona_repartidores_rep_idx ON zona_repartidores (repartidor_id);
 --  6. COMERCIOS
 -- =====================================================================
 CREATE TABLE comercios (
-  id                uuid PRIMARY KEY REFERENCES usuarios(id),   -- el mismo id de su cuenta de acceso; no se guarda dueño ni responsable
-  nombre            text NOT NULL,                   -- nombre comercial
+  id                uuid PRIMARY KEY REFERENCES usuarios(id),   -- el mismo id de su cuenta de acceso (une las dos tablas); no se guarda dueño ni responsable
   tipo              tipo_comercio NOT NULL DEFAULT 'comercio',
   estado            estado_comercio NOT NULL DEFAULT 'activo',
-  celular           text,                            -- debe tener WhatsApp
-  correo            citext,
   -- Punto de recogida: cada comercio tiene uno y el repartidor recoge aquí
   direccion         text NOT NULL,
   detalle           text,                            -- local, bodega, piso, a quién preguntar
   municipio_id      text NOT NULL REFERENCES municipios(id),
   punto             geography(Point, 4326),          -- coordenadas de la dirección (las pone el backend)
-  place_id          text,                            -- Place ID de Google Maps
-  creado            timestamptz NOT NULL DEFAULT now(),
-  actualizado       timestamptz NOT NULL DEFAULT now()
-);
-CREATE TRIGGER t_comercios_act BEFORE UPDATE ON comercios FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
-CREATE INDEX comercios_nombre_idx ON comercios (lower(nombre));
+  place_id          text                             -- Place ID de Google Maps
+);   -- nombre comercial, celular, correo y fechas: en usuarios
+CREATE TRIGGER t_comercios_act AFTER UPDATE ON comercios FOR EACH ROW EXECUTE FUNCTION tocar_usuario('id');
 CREATE INDEX comercios_punto_idx ON comercios USING gist (punto);
 
 -- =====================================================================
@@ -678,14 +677,15 @@ GROUP BY r.usuario_id, u.nombre, r.estado;
 
 -- Por comercio
 CREATE VIEW v_comercios AS
-SELECT c.id AS comercio_id, c.nombre, c.tipo, c.estado,
+SELECT c.id AS comercio_id, u.nombre, c.tipo, c.estado,
        count(p.id)                                       AS pedidos,
        count(p.id) FILTER (WHERE p.estado = 'entregado') AS entregados,
        max(p.creado)                                     AS ultimo_pedido,
        coalesce(sum(p.cobro) FILTER (WHERE p.estado = 'entregado'), 0) AS recaudo
 FROM comercios c
+JOIN usuarios u ON u.id = c.id
 LEFT JOIN pedidos p ON p.comercio_id = c.id
-GROUP BY c.id;
+GROUP BY c.id, u.nombre;
 
 -- Demanda en el mapa (capa "Calor"): solo coordenadas; el mapa las agrupa
 CREATE VIEW v_demanda_puntos AS
