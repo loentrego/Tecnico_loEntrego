@@ -27,6 +27,7 @@ INSERT INTO ajustes (clave, valor, descripcion) VALUES
 -- Usuarios de prueba (los mismos de la demo). ¡Cambiar las claves en producción!
 INSERT INTO usuarios (rol, usuario, clave_hash, nombre, celular) VALUES
   ('admin',      'admin',      crypt('admin123',  gen_salt('bf')), 'Administrador general', NULL),
+  ('sistema',    'sistema',    crypt('sistema123', gen_salt('bf')), 'Cuenta técnica',        NULL),
   ('comercio',   'demo',       crypt('demo123',   gen_salt('bf')), 'Tienda Demo',           '3001112233'),
   ('repartidor', 'repartidor', crypt('reparto123', gen_salt('bf')), 'Carlos Repartidor',    '3104445566');
 

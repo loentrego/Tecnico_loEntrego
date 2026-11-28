@@ -31,7 +31,7 @@ SET TIME ZONE 'America/Bogota';
 -- =====================================================================
 
 -- Roles de quien entra a la AppWeb o al panel
-CREATE TYPE rol_usuario AS ENUM ('admin', 'comercio', 'repartidor');
+CREATE TYPE rol_usuario AS ENUM ('admin', 'comercio', 'repartidor', 'sistema');   -- sistema: panel técnico del servidor
 
 -- Ciclo de vida del pedido (igual que ESTADOS en AppWeb/Scripts-app.js)
 CREATE TYPE estado_pedido AS ENUM ('por_recoger', 'recogido', 'en_camino', 'entregado', 'no_entregado', 'cancelado');
@@ -374,8 +374,10 @@ CREATE TABLE estado_canales (
 );
 CREATE TRIGGER t_canales_act BEFORE UPDATE ON estado_canales FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
+-- Mantenimientos programados desde el panel de sistema
 CREATE TABLE mantenimientos (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  sitios        text[] NOT NULL CHECK (sitios <@ ARRAY['web', 'app', 'admin'] AND cardinality(sitios) > 0),
   inicio        timestamptz NOT NULL,
   regreso       timestamptz,                       -- "Regreso estimado" (data-regreso)
   mensaje       text,
