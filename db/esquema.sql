@@ -203,9 +203,8 @@ CREATE TABLE pedidos (
   destinatario_telefono text NOT NULL CHECK (destinatario_telefono ~ '^[0-9]{7,10}$'),
   direccion             text NOT NULL,
   notas                 text,
-  -- Zona: el backend ubica la dirección (sin guardar coordenadas) y busca su zona con zona_para_punto().
-  -- De la zona salen el área (y su tarifa) y el repartidor.
-  zona_id               text NOT NULL REFERENCES zonas(id),
+  -- El backend ubica la dirección (sin guardar coordenadas) y con zona_para_punto() obtiene
+  -- el repartidor de esa zona y la tarifa de su área. La zona no se guarda: va implícita en el repartidor.
   fuera_de_zona         boolean NOT NULL DEFAULT false, -- la dirección cayó en un hueco: se usó la zona más cercana
   -- Dinero
   cobro                 bigint NOT NULL DEFAULT 0 CHECK (cobro >= 0),   -- contraentrega; 0 = ya pagado
@@ -224,7 +223,6 @@ CREATE INDEX pedidos_comercio_idx   ON pedidos (comercio_id, creado DESC);
 CREATE INDEX pedidos_comercio_dia_idx ON pedidos (comercio_id, dia_de(creado));
 CREATE INDEX pedidos_repartidor_idx ON pedidos (repartidor_id, dia_de(creado)) WHERE repartidor_id IS NOT NULL;
 CREATE INDEX pedidos_activos_idx    ON pedidos (estado) WHERE estado IN ('por_recoger', 'recogido', 'en_camino');
-CREATE INDEX pedidos_zona_dia_idx   ON pedidos (zona_id, dia_de(creado));
 CREATE INDEX pedidos_dia_idx        ON pedidos (dia_de(creado));
 CREATE TRIGGER t_pedidos_act BEFORE UPDATE ON pedidos FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
@@ -349,27 +347,17 @@ CREATE TABLE solicitudes_comercio (
 CREATE INDEX solicitudes_comercio_estado_idx ON solicitudes_comercio (estado, creado DESC);
 CREATE TRIGGER t_solicitudes_act BEFORE UPDATE ON solicitudes_comercio FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
--- Enlaces de registro que genera el panel (invitar comercios o repartidores)
+-- Enlaces de registro que genera el panel: uno por persona (se habla con ella y se le envía)
 CREATE TABLE enlaces_registro (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   token         text NOT NULL UNIQUE DEFAULT translate(encode(gen_random_bytes(18), 'base64'), '+/=', '-_'),
   rol           rol_usuario NOT NULL CHECK (rol IN ('comercio', 'repartidor')),
   nota          text,
-  usos_max      int NOT NULL DEFAULT 1 CHECK (usos_max > 0),
-  usos          int NOT NULL DEFAULT 0 CHECK (usos >= 0),
-  vence         timestamptz NOT NULL DEFAULT now() + interval '7 days',
+  vence         timestamptz NOT NULL DEFAULT now() + interval '24 hours',   -- el panel los da por 24 h
   revocado_en   timestamptz,
+  usado_por     uuid UNIQUE REFERENCES usuarios(id),   -- la cuenta que se creó con él (vacío = sin usar); se usa una sola vez
   creado_por    uuid NOT NULL REFERENCES usuarios(id),
-  creado        timestamptz NOT NULL DEFAULT now(),
-  CHECK (usos <= usos_max)
-);
-
--- Quién se registró con cada enlace
-CREATE TABLE registros_por_enlace (
-  enlace_id   uuid NOT NULL REFERENCES enlaces_registro(id),
-  usuario_id  uuid NOT NULL UNIQUE REFERENCES usuarios(id),
-  creado      timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (enlace_id, usuario_id)
+  creado        timestamptz NOT NULL DEFAULT now()
 );
 
 -- =====================================================================
@@ -421,41 +409,35 @@ CREATE INDEX auditoria_registro_idx ON auditoria (tabla, registro_id, ocurrido D
 --  11. FUNCIONES DE TERRITORIO Y AUTOASIGNACIÓN
 -- =====================================================================
 
--- Zona para un punto: la que lo contiene o, si cae en un hueco, la más cercana
+-- Zona para un punto: la que lo contiene o, si cae en un hueco, la más cercana.
+-- Devuelve lo que necesita el pedido: el repartidor de la zona (si está activo) y la tarifa de su área.
+-- Las coordenadas solo se usan aquí, en el momento: no se guardan.
 CREATE FUNCTION zona_para_punto(lat double precision, lon double precision)
-RETURNS TABLE (id text, nombre text, dentro boolean) LANGUAGE sql STABLE AS $$
-  WITH p AS (SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS g)
-  (SELECT z.id, z.nombre, true FROM zonas z, p
-    WHERE z.archivado_en IS NULL AND ST_Covers(z.contorno, p.g)
+RETURNS TABLE (id text, nombre text, dentro boolean, repartidor_id uuid, tarifa bigint) LANGUAGE sql STABLE AS $$
+  WITH p AS (SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS g),
+  z AS (
+    (SELECT z.id, z.nombre, true AS dentro, z.repartidor_id, z.area_id FROM zonas z, p
+      WHERE z.archivado_en IS NULL AND ST_Covers(z.contorno, p.g)
+      ORDER BY z.id LIMIT 1)                               -- en un borde compartido, siempre la misma
+    UNION ALL
+    (SELECT z.id, z.nombre, false, z.repartidor_id, z.area_id FROM zonas z, p
+      WHERE z.archivado_en IS NULL AND NOT EXISTS (
+        SELECT 1 FROM zonas z2 WHERE z2.archivado_en IS NULL AND ST_Covers(z2.contorno, p.g))
+      ORDER BY z.contorno <-> p.g LIMIT 1)
     LIMIT 1)
-  UNION ALL
-  (SELECT z.id, z.nombre, false FROM zonas z, p
-    WHERE z.archivado_en IS NULL AND NOT EXISTS (
-      SELECT 1 FROM zonas z2 WHERE z2.archivado_en IS NULL AND ST_Covers(z2.contorno, p.g))
-    ORDER BY z.contorno <-> p.g LIMIT 1)
-  LIMIT 1
+  SELECT z.id, z.nombre, z.dentro,
+         (SELECT u.id FROM usuarios u WHERE u.id = z.repartidor_id AND u.estado = 'activo'),
+         a.tarifa
+  FROM z JOIN areas a ON a.id = z.area_id AND a.activa
 $$;
 
--- Al registrar un pedido, en este orden: tarifa del área → zona por la dirección → repartidor de esa zona
--- → número de guía (prefijo del repartidor + su contador, ej. CRE-0000042).
--- La zona la manda el backend (la sacó de la dirección). Si el repartidor de la zona está pausado,
--- el pedido queda sin repartidor y la guía sale con LOE + secuencia general.
+-- Al registrar un pedido: el backend ya trae el repartidor y la tarifa (de zona_para_punto).
+-- La base arma el número de guía: prefijo del repartidor + su contador (CRE-0000042).
+-- Si no tiene repartidor (el de la zona está pausado), sale con LOE + secuencia general.
 CREATE FUNCTION pedido_al_crear() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE pre text; num int;
 BEGIN
   IF NEW.estado <> 'por_recoger' THEN RAISE EXCEPTION 'Un pedido nuevo empieza en por_recoger'; END IF;
-  -- Tarifa: la del área de la zona
-  IF NEW.tarifa IS NULL THEN
-    SELECT a.tarifa INTO NEW.tarifa FROM zonas zo JOIN areas a ON a.id = zo.area_id AND a.activa
-    WHERE zo.id = NEW.zona_id AND zo.archivado_en IS NULL;
-    IF NEW.tarifa IS NULL THEN RAISE EXCEPTION 'La zona % no existe o no tiene cobertura', NEW.zona_id; END IF;
-  END IF;
-  -- Repartidor: el de la zona, si está activo
-  IF NEW.repartidor_id IS NULL THEN
-    SELECT zo.repartidor_id INTO NEW.repartidor_id FROM zonas zo
-      JOIN usuarios u ON u.id = zo.repartidor_id AND u.estado = 'activo'
-    WHERE zo.id = NEW.zona_id;
-  END IF;
   IF NEW.codigo IS NULL THEN
     IF NEW.repartidor_id IS NOT NULL THEN
       UPDATE repartidores SET contador_pedidos = contador_pedidos + 1
@@ -570,27 +552,23 @@ JOIN usuarios u ON u.id = c.id
 LEFT JOIN pedidos p ON p.comercio_id = c.id
 GROUP BY c.id, u.nombre, u.estado;
 
--- Demanda en el mapa (capa "Calor"): pedidos por zona y día
-CREATE VIEW v_demanda_zonas AS
-SELECT p.zona_id, dia_de(p.creado) AS dia, count(*) AS pedidos
-FROM pedidos p
-WHERE p.estado <> 'cancelado'
-GROUP BY p.zona_id, dia_de(p.creado);
-
--- Carga de cada zona: pedidos al día (promedio de 30 días) frente a su capacidad
-CREATE VIEW v_cobertura_zonas AS
-SELECT z.id AS zona_id, z.nombre, z.area_id, z.repartidor_id, u.nombre AS repartidor, z.capacidad_diaria,
+-- Carga de cada repartidor: pedidos al día (promedio de 30 días) frente a la capacidad de sus zonas
+CREATE VIEW v_carga_repartidores AS
+SELECT r.usuario_id AS repartidor_id, u.nombre,
+       string_agg(z.nombre, ', ' ORDER BY z.nombre) AS zonas,
+       sum(z.capacidad_diaria)::int AS capacidad_diaria,
        round(coalesce(d.promedio, 0), 1) AS pedidos_dia_promedio,
-       round(100 * coalesce(d.promedio, 0) / z.capacidad_diaria) AS carga_pct   -- más de 100 = se queda corta
-FROM zonas z
-JOIN usuarios u ON u.id = z.repartidor_id
+       round(100 * coalesce(d.promedio, 0) / nullif(sum(z.capacidad_diaria), 0)) AS carga_pct   -- más de 100 = se queda corto
+FROM repartidores r
+JOIN usuarios u ON u.id = r.usuario_id
+JOIN zonas z ON z.repartidor_id = r.usuario_id AND z.archivado_en IS NULL
 LEFT JOIN LATERAL (
   SELECT avg(n) AS promedio FROM (
     SELECT count(*) AS n FROM pedidos p
-    WHERE p.zona_id = z.id AND dia_de(p.creado) > dia_de(now()) - 30
+    WHERE p.repartidor_id = r.usuario_id AND dia_de(p.creado) > dia_de(now()) - 30
     GROUP BY dia_de(p.creado)) s
 ) d ON true
-WHERE z.archivado_en IS NULL;
+GROUP BY r.usuario_id, u.nombre, d.promedio;
 
 -- =====================================================================
 --  13. MÉTRICAS (se calculan en vivo desde los pedidos: no hay tablas de métricas)

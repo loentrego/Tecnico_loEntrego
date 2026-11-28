@@ -16,7 +16,7 @@
     { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'evidencias'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
     { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio'], txt: 'Lo que llega del formulario Únete de la web (el único formulario de la web). Los repartidores no se postulan: se habla con ellos y se les envía el enlace.' },
-    { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['enlaces_registro', 'registros_por_enlace', 'asignaciones', 'auditoria', 'archivos', 'estado_canales', 'mantenimientos', 'ajustes'], txt: 'Registros del sistema: enlaces creados y quién se registró con ellos, intercambios de repartidor (asignaciones), auditoría, archivos, mantenimiento y ajustes.' },
+    { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['enlaces_registro', 'asignaciones', 'auditoria', 'archivos', 'estado_canales', 'mantenimientos', 'ajustes'], txt: 'Registros del sistema: enlaces creados (y qué cuenta se creó con cada uno), intercambios de repartidor (asignaciones), auditoría, archivos, mantenimiento y ajustes.' },
   ];
   const areaDe = {};
   AREAS.forEach((a) => a.tablas.forEach((t) => (areaDe[t] = a)));
@@ -30,7 +30,7 @@
     zonas: 'Las zonas que se dibujan en el panel, cada una con un solo repartidor. El contorno es un polígono PostGIS en una sola columna (se envía y se recibe como GeoJSON).',
     comercios: 'Comercios, ecommerce y entidades públicas que envían con LoEntrego, con su cuenta para liquidar.',
     repartidores: 'Datos del repartidor: cédula de ciudadanía (solo el número, no se valida por sistema), prefijo de sus guías y su contador, estado y contacto de emergencia. Empieza el día que se registra (usuarios.creado): el admin ya habló con él antes de enviarle el enlace.',
-    pedidos: 'Cada envío: destinatario, dirección, zona (de ella salen el área y la tarifa), cobro contraentrega, tarifa, repartidor y estado.',
+    pedidos: 'Cada envío: destinatario, dirección, repartidor (la zona va implícita en él), cobro contraentrega, tarifa, repartidor y estado.',
     pedido_eventos: 'Cada cambio de estado del pedido: quién, cuándo y, si no se entregó, el motivo. Registrar un evento es la forma de cambiar el estado (la base valida el paso).',
     asignaciones: 'Dato auxiliar: cada cambio de repartidor del pedido: quién lo tenía, a quién pasó, la hora y quién lo hizo. Se llena sola.',
     evidencias: 'Fotos y firmas de la entrega o del intento.',
@@ -39,8 +39,7 @@
     liquidacion_pedidos: 'Qué pedidos entran en cada liquidación. Un pedido se liquida una sola vez.',
     pagos_repartidor: 'Pago al repartidor por periodo: entregas por valor más ajustes.',
     solicitudes_comercio: 'Formulario "Únete" de la web. Se sigue hasta que se convierte en comercio.',
-    enlaces_registro: 'Enlaces que genera el panel para invitar comercios o repartidores, con usos y vencimiento.',
-    registros_por_enlace: 'Quién se registró con cada enlace.',
+    enlaces_registro: 'Enlaces que genera el panel para registrar a un comercio o repartidor. Sirven una vez y vencen en 24 h; usado_por dice qué cuenta se creó con él.',
     archivos: 'Ficha de cada archivo guardado en el almacenamiento de objetos.',
     estado_canales: 'Lo que muestra la página de mantenimiento para cada canal.',
     mantenimientos: 'Ventanas de mantenimiento con su hora estimada de regreso.',

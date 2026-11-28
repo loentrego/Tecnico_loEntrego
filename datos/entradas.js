@@ -282,7 +282,7 @@ window.ENTRADAS = (() => {
           llamadas: [
             {
               id: 'crear-pedido', nombre: 'Crear pedido', metodo: 'POST', ruta: '/api/pedidos', auth,
-              cuando: 'Al tocar "Crear pedido". La API ubica la dirección (sin guardar coordenadas) y busca su zona; la base pone tarifa, repartidor y el número de guía. Se entrega al día siguiente. El formulario no muestra número: aparece cuando el pedido queda registrado.',
+              cuando: 'Al tocar "Crear pedido". La API ubica la dirección (sin guardar coordenadas) y con zona_para_punto obtiene el repartidor y la tarifa; la base pone el número de guía. Se entrega al día siguiente. El formulario no muestra número: aparece cuando el pedido queda registrado.',
               envia: [
                 ['zona', 'texto', true, 'bogota', 'bogota · funza · soacha: ayuda a ubicar la dirección (no se guarda; el área sale de la zona)'],
                 ['direccion', 'texto', true, 'Calle 72 #10-34', ''],
@@ -614,7 +614,7 @@ window.ENTRADAS = (() => {
               id: 'zonas', nombre: 'Zonas de reparto', metodo: 'GET', ruta: '/api/admin/zonas', auth,
               cuando: 'Al abrir el mapa (hoy se guardan en localStorage "loentrego-admin-zonas-v2").', envia: null,
               recibe: [['type', 'texto', true, 'FeatureCollection', ''], ['features[]', 'ZonaFeature', true, null, '']],
-              tablas: 'zonas, v_cobertura_zonas', errores: [],
+              tablas: 'zonas, v_carga_repartidores', errores: [],
             },
             {
               id: 'localidades', nombre: 'Localidades', metodo: 'GET', ruta: '/api/admin/mapa/localidades', auth,
@@ -630,14 +630,14 @@ window.ENTRADAS = (() => {
               tablas: '— (archivo estático del panel, no está en la base)', errores: [],
             },
             {
-              id: 'demanda', nombre: 'Demanda en el mapa (Calor)', metodo: 'GET', ruta: '/api/admin/mapa/demanda?periodo=', auth,
+              id: 'demanda', nombre: 'Demanda en el mapa (Calor, por repartidor y sus zonas)', metodo: 'GET', ruta: '/api/admin/mapa/demanda?periodo=', auth,
               cuando: 'Al activar Calor o cambiar de periodo.', envia: null,
               recibe: [
-                ['zonas[]', 'lista', true, null, 'Una fila por zona'],
-                ['zonas[].zona_id', 'texto', true, 'chapinero-norte', ''],
-                ['zonas[].pedidos', 'entero', true, 312, 'En el periodo'],
+                ['repartidores[]', 'lista', true, null, 'Una fila por repartidor; el mapa pinta sus zonas'],
+                ['repartidores[].repartidor_id', 'uuid', true, 'r1', ''],
+                ['repartidores[].pedidos', 'entero', true, 312, 'En el periodo'],
               ],
-              tablas: 'v_demanda_zonas', errores: [],
+              tablas: 'pedidos (por repartidor), zonas', errores: [],
             },
             {
               id: 'guardar-zona', nombre: 'Crear o editar zona', metodo: 'PUT', ruta: '/api/admin/zonas/:id', auth,
@@ -682,8 +682,7 @@ window.ENTRADAS = (() => {
                 ['enlaces[].id', 'uuid', true, '3c9d…', ''],
                 ['enlaces[].rol', 'texto', true, 'repartidor', ''],
                 ['enlaces[].url', 'texto', true, 'https://loentrego.com/registro-repartidor?t=Xk2…', ''],
-                ['enlaces[].usos', 'entero', true, 0, ''],
-                ['enlaces[].usos_max', 'entero', true, 1, ''],
+                ['enlaces[].usado', 'booleano', true, false, 'Sirve una sola vez'],
                 ['enlaces[].vence', 'fecha-hora', true, '2026-11-30T23:59:00-05:00', ''],
               ],
               tablas: 'enlaces_registro', errores: [],
@@ -694,8 +693,6 @@ window.ENTRADAS = (() => {
               envia: [
                 ['rol', 'texto', true, 'repartidor', 'repartidor · comercio'],
                 ['url_base', 'texto', true, 'https://loentrego.com/registro-repartidor', ''],
-                ['usos_max', 'entero', false, 1, 'Por defecto 1'],
-                ['dias', 'entero', false, 7, 'Vigencia, por defecto 7'],
               ],
               recibe: [['id', 'uuid', true, '3c9d…', ''], ['url', 'texto', true, 'https://loentrego.com/registro-repartidor?t=Xk2…', 'url_base + token'], ['vence', 'fecha-hora', true, '2026-11-30T23:59:00-05:00', '']],
               tablas: 'enlaces_registro', errores: [['422', 'URL inválida']],
@@ -776,7 +773,7 @@ window.ENTRADAS = (() => {
                 ['acepta_datos', 'booleano', true, true, ''],
               ],
               recibe: [['usuario', 'texto', true, 'laespiga', ''], ['rol', 'texto', true, 'comercio', ''], ['mensaje', 'texto', true, 'Tu comercio quedó activo', '']],
-              tablas: 'enlaces_registro, registros_por_enlace, usuarios, comercios',
+              tablas: 'enlaces_registro (usado_por), usuarios, comercios',
               errores: [['409', 'El usuario ya existe (llega en "campos")'], ['410', 'El enlace ya se usó o venció'], ['422', 'Campo inválido']],
             },
           ],
@@ -809,7 +806,7 @@ window.ENTRADAS = (() => {
                 ['acepta_datos', 'booleano', true, true, ''],
               ],
               recibe: [['usuario', 'texto', true, 'camilo.r', ''], ['rol', 'texto', true, 'repartidor', ''], ['mensaje', 'texto', true, 'Tu cuenta quedó creada', '']],
-              tablas: 'enlaces_registro, registros_por_enlace, usuarios, repartidores (sin datos de vehículo)',
+              tablas: 'enlaces_registro (usado_por), usuarios, repartidores (sin datos de vehículo)',
               errores: [['409', 'Usuario o documento ya registrado'], ['410', 'El enlace ya se usó o venció'], ['422', 'Campo inválido']],
             },
           ],
