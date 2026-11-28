@@ -221,6 +221,7 @@ CREATE TABLE pedidos (
   CHECK (estado = 'por_recoger' OR estado = 'cancelado' OR repartidor_id IS NOT NULL)
 );
 CREATE INDEX pedidos_comercio_idx   ON pedidos (comercio_id, creado DESC);
+CREATE INDEX pedidos_comercio_dia_idx ON pedidos (comercio_id, dia_de(creado));
 CREATE INDEX pedidos_repartidor_idx ON pedidos (repartidor_id, dia_de(creado)) WHERE repartidor_id IS NOT NULL;
 CREATE INDEX pedidos_activos_idx    ON pedidos (estado) WHERE estado IN ('por_recoger', 'recogido', 'en_camino');
 CREATE INDEX pedidos_zona_dia_idx   ON pedidos (zona_id, dia_de(creado));
@@ -618,112 +619,56 @@ LEFT JOIN LATERAL (
 WHERE z.archivado_en IS NULL;
 
 -- =====================================================================
---  13. MÉTRICAS POR DÍA (comercios y repartidores)
---  Una fila por comercio o repartidor y día. Los periodos (hoy, semana,
---  mes, 6 meses, año, histórico) se sacan sumando filas. El backend llama
---  refrescar_metricas() cada pocos minutos para hoy y al cierre del día.
+--  13. MÉTRICAS (se calculan en vivo desde los pedidos: no hay tablas de métricas)
+--  Los pedidos ya son el historial. Cada periodo es una fecha "desde" en hora de Bogotá.
+--  Si algún día hiciera falta más velocidad: una vista materializada por día que arma Postgres.
 -- =====================================================================
-CREATE TABLE metricas_comercio_dia (
-  comercio_id       uuid NOT NULL REFERENCES comercios(id) ON DELETE CASCADE,
-  dia               date NOT NULL,
-  pedidos           int NOT NULL DEFAULT 0,
-  entregados        int NOT NULL DEFAULT 0,
-  no_entregados     int NOT NULL DEFAULT 0,
-  cancelados        int NOT NULL DEFAULT 0,
-  recaudo           bigint NOT NULL DEFAULT 0,       -- cobrado contraentrega en pedidos entregados
-  tarifas           bigint NOT NULL DEFAULT 0,       -- envíos de los pedidos entregados
-  minutos_entrega   bigint NOT NULL DEFAULT 0,       -- suma de minutos de recogido a entregado
-  calculado         timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (comercio_id, dia)
-);
-CREATE INDEX metricas_comercio_dia_idx ON metricas_comercio_dia (dia);
-
-CREATE TABLE metricas_repartidor_dia (
-  repartidor_id     uuid NOT NULL REFERENCES repartidores(usuario_id) ON DELETE CASCADE,
-  dia               date NOT NULL,
-  asignados         int NOT NULL DEFAULT 0,
-  entregados        int NOT NULL DEFAULT 0,
-  no_entregados     int NOT NULL DEFAULT 0,
-  cobrado           bigint NOT NULL DEFAULT 0,       -- efectivo recibido en entregas
-  minutos_entrega   bigint NOT NULL DEFAULT 0,
-  calculado         timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (repartidor_id, dia)
-);
-CREATE INDEX metricas_repartidor_dia_idx ON metricas_repartidor_dia (dia);
-
--- Recalcula un día completo (por defecto hoy). Se puede repetir sin duplicar.
-CREATE FUNCTION refrescar_metricas(p_dia date DEFAULT dia_de(now())) RETURNS void LANGUAGE plpgsql AS $$
-BEGIN
-  DELETE FROM metricas_comercio_dia WHERE dia = p_dia;
-  INSERT INTO metricas_comercio_dia (comercio_id, dia, pedidos, entregados, no_entregados, cancelados, recaudo, tarifas, minutos_entrega)
-  SELECT p.comercio_id, p_dia,
-         count(*),
-         count(*) FILTER (WHERE p.estado = 'entregado'),
-         count(*) FILTER (WHERE p.estado = 'no_entregado'),
-         count(*) FILTER (WHERE p.estado = 'cancelado'),
-         coalesce(sum(p.cobro)  FILTER (WHERE p.estado = 'entregado'), 0),
-         coalesce(sum(p.tarifa) FILTER (WHERE p.estado = 'entregado'), 0),
-         coalesce(sum(t.minutos) FILTER (WHERE p.estado = 'entregado'), 0)
-  FROM pedidos p
-  LEFT JOIN LATERAL (
-    SELECT extract(epoch FROM p.cerrado_en - coalesce(min(e.ocurrido), p.creado))::bigint / 60 AS minutos
-    FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido'
-  ) t ON true
-  WHERE dia_de(p.creado) = p_dia
-  GROUP BY p.comercio_id;
-
-  DELETE FROM metricas_repartidor_dia WHERE dia = p_dia;
-  INSERT INTO metricas_repartidor_dia (repartidor_id, dia, asignados, entregados, no_entregados, cobrado, minutos_entrega)
-  SELECT r.usuario_id, p_dia,
-         coalesce(pd.asignados, 0), coalesce(pd.entregados, 0), coalesce(pd.no_entregados, 0),
-         coalesce(pd.cobrado, 0), coalesce(pd.minutos, 0)
-  FROM repartidores r
-  LEFT JOIN LATERAL (
-    SELECT count(*) AS asignados,
-           count(*) FILTER (WHERE p.estado = 'entregado')    AS entregados,
-           count(*) FILTER (WHERE p.estado = 'no_entregado') AS no_entregados,
-           sum(p.cobro) FILTER (WHERE p.estado = 'entregado') AS cobrado,
-           sum(extract(epoch FROM p.cerrado_en - coalesce(
-                 (SELECT min(e.ocurrido) FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido'),
-                 p.creado))::bigint / 60) FILTER (WHERE p.estado = 'entregado') AS minutos
-    FROM pedidos p WHERE p.repartidor_id = r.usuario_id AND dia_de(p.creado) = p_dia
-  ) pd ON true
-  WHERE pd.asignados > 0;
-END $$;
-
--- Periodos que usan el panel y la AppWeb
 CREATE VIEW periodos AS
 SELECT * FROM (VALUES
-  ('hoy',       1, current_date),
-  ('semana',    2, current_date - 6),
-  ('mes',       3, current_date - 29),
-  ('6m',        4, (current_date - interval '6 months')::date),
-  ('anio',      5, (current_date - interval '1 year')::date),
+  ('dia',       1, dia_de(now())),
+  ('semana',    2, date_trunc('week',  dia_de(now()))::date),          -- desde el lunes
+  ('mes',       3, date_trunc('month', dia_de(now()))::date),          -- desde el día 1
+  ('6m',        4, (dia_de(now()) - interval '6 months')::date),       -- últimos 6 meses
+  ('anio',      5, date_trunc('year',  dia_de(now()))::date),          -- desde el 1 de enero
   ('historico', 6, '-infinity'::date)
 ) AS t (periodo, orden, desde);
 
+-- Hora en que se recogió cada pedido (para el tiempo de entrega)
+CREATE VIEW v_pedidos_tiempos AS
+SELECT p.id AS pedido_id,
+       (SELECT min(e.ocurrido) FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido') AS recogido_en
+FROM pedidos p;
+
 -- Métricas de cada comercio por periodo
 CREATE VIEW v_metricas_comercio AS
-SELECT m.comercio_id, pe.periodo, pe.orden,
-       sum(m.pedidos)::int AS pedidos, sum(m.entregados)::int AS entregados,
-       sum(m.no_entregados)::int AS no_entregados, sum(m.cancelados)::int AS cancelados,
-       round(100.0 * sum(m.entregados) / nullif(sum(m.entregados) + sum(m.no_entregados), 0), 1) AS efectividad,
-       sum(m.recaudo)::bigint AS recaudo, sum(m.tarifas)::bigint AS tarifas,
-       round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio
+SELECT p.comercio_id, pe.periodo, pe.orden,
+       count(*)::int                                         AS pedidos,
+       count(*) FILTER (WHERE p.estado = 'entregado')::int    AS entregados,
+       count(*) FILTER (WHERE p.estado = 'no_entregado')::int AS no_entregados,
+       count(*) FILTER (WHERE p.estado = 'cancelado')::int    AS cancelados,
+       round(100.0 * count(*) FILTER (WHERE p.estado = 'entregado')
+             / nullif(count(*) FILTER (WHERE p.estado IN ('entregado', 'no_entregado')), 0), 1) AS efectividad,
+       coalesce(sum(p.cobro)  FILTER (WHERE p.estado = 'entregado'), 0)::bigint AS recaudo,
+       coalesce(sum(p.tarifa) FILTER (WHERE p.estado = 'entregado'), 0)::bigint AS tarifas,
+       round(avg(extract(epoch FROM p.cerrado_en - t.recogido_en) / 60) FILTER (WHERE p.estado = 'entregado')) AS minutos_promedio
 FROM periodos pe
-JOIN metricas_comercio_dia m ON m.dia >= pe.desde
-GROUP BY m.comercio_id, pe.periodo, pe.orden;
+JOIN pedidos p ON dia_de(p.creado) >= pe.desde
+JOIN v_pedidos_tiempos t ON t.pedido_id = p.id
+GROUP BY p.comercio_id, pe.periodo, pe.orden;
 
--- Métricas de cada repartidor por periodo
+-- Métricas de cada repartidor por periodo (se le evalúa solo por estos números)
 CREATE VIEW v_metricas_repartidor AS
-SELECT m.repartidor_id, pe.periodo, pe.orden,
-       sum(m.asignados)::int AS asignados, sum(m.entregados)::int AS entregados,
-       sum(m.no_entregados)::int AS no_entregados,
-       round(100.0 * sum(m.entregados) / nullif(sum(m.entregados) + sum(m.no_entregados), 0), 1) AS efectividad,
-       sum(m.cobrado)::bigint AS cobrado,
-       round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio
+SELECT p.repartidor_id, pe.periodo, pe.orden,
+       count(*)::int                                         AS asignados,
+       count(*) FILTER (WHERE p.estado = 'entregado')::int    AS entregados,
+       count(*) FILTER (WHERE p.estado = 'no_entregado')::int AS no_entregados,
+       round(100.0 * count(*) FILTER (WHERE p.estado = 'entregado')
+             / nullif(count(*) FILTER (WHERE p.estado IN ('entregado', 'no_entregado')), 0), 1) AS efectividad,
+       coalesce(sum(p.cobro) FILTER (WHERE p.estado = 'entregado'), 0)::bigint AS cobrado,
+       round(avg(extract(epoch FROM p.cerrado_en - t.recogido_en) / 60) FILTER (WHERE p.estado = 'entregado')) AS minutos_promedio
 FROM periodos pe
-JOIN metricas_repartidor_dia m ON m.dia >= pe.desde
-GROUP BY m.repartidor_id, pe.periodo, pe.orden;
+JOIN pedidos p ON dia_de(p.creado) >= pe.desde AND p.repartidor_id IS NOT NULL
+JOIN v_pedidos_tiempos t ON t.pedido_id = p.id
+GROUP BY p.repartidor_id, pe.periodo, pe.orden;
 
 COMMIT;

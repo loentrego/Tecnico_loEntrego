@@ -306,7 +306,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <article class="rule-card"><h4>Al crear un pedido</h4><p>Con la <b>zona</b> que manda el backend (sacada de la dirección, sin guardar coordenadas) pone la <b>tarifa</b> de su área, se lo asigna al <b>repartidor de esa zona</b> si está activo y arma el <b>número de guía</b> con su prefijo y su contador (<code>CRE-0000042</code>). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
         <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre. Cada cambio se registra como un evento en <code>pedido_eventos</code> (quién, cuándo y, si no se entregó, el motivo) y la base actualiza el pedido sola.</p></article>
         <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code>: quién lo tenía, a quién pasó, la hora y quién lo hizo.</p></article>
-        <article class="rule-card"><h4>Métricas por día</h4><p>Cada comercio y cada repartidor tiene una fila por día en <code>metricas_comercio_dia</code> y <code>metricas_repartidor_dia</code>. El backend llama <code>refrescar_metricas()</code> cada pocos minutos y al cierre; los periodos salen sumando días, sin recorrer todos los pedidos.</p></article>
+        <article class="rule-card"><h4>Métricas en vivo</h4><p>No hay tablas de métricas: los pedidos ya son el historial. Las vistas <code>v_metricas_comercio</code> y <code>v_metricas_repartidor</code> cuentan en el momento por Día, Semana, Mes, 6 meses, Año e Histórico (en hora de Bogotá), así que siempre están al día, incluso si se corrige un pedido viejo.</p></article>
         <article class="rule-card"><h4>Cálculos guardados</h4><p>La diferencia del cierre de caja, el neto de cada liquidación y el total del pago al repartidor se calculan en la base (<code>GENERATED</code>). Nadie los escribe a mano.</p></article>
       </div>
 
@@ -352,9 +352,9 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <p class="lead">El pedido es el centro: casi todo se conecta con él, con el comercio que lo crea o con el repartidor que lo lleva.</p>
 
       <div class="nucleo" aria-label="Diagrama de las relaciones principales">
-        <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>punto de recogida · metricas_comercio_dia</small></div>
+        <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>punto de recogida</small></div>
         <div class="n-box n-c" style="grid-area: usu"><b>usuarios</b><small>sesiones · rol admin / comercio / repartidor</small></div>
-        <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>metricas_repartidor_dia</small></div>
+        <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>cédula · prefijo de guías</small></div>
         <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>areas · zonas</small></div>
         <div class="n-box n-p" style="grid-area: ped"><b>pedidos</b><small>el centro de todo</small></div>
         <div class="n-box n-d" style="grid-area: din"><b>dinero</b><small>cierres_caja · liquidaciones · pagos_repartidor</small></div>
@@ -414,8 +414,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=23"></script>
+<script src="datos/esquema.js?v=24"></script>
 <script src="datos/entradas.js?v=25"></script>
-<script src="script.js?v=25"></script>
+<script src="script.js?v=26"></script>
 </body>
 </html>
