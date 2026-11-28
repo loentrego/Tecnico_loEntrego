@@ -729,9 +729,9 @@ window.ENTRADAS = (() => {
           ],
         },
         {
-          id: 'adm-sistema', nombre: 'Panel de sistema (aparte: sistema/index.html y sistema/panel.html)', archivo: 'sistema/panel.html',
+          id: 'adm-sistema', nombre: 'Panel de sistema (aparte: sistema/panel.html; mismo login del admin)', archivo: 'sistema/panel.html',
           controles: [
-            ['formulario', 'Acceso técnico', 'usuario · clave', 'Solo rol sistema · sesión hasta cerrar la pestaña', 'login'],
+            ['formulario', 'Login del admin (index.html)', 'usuario · clave', 'La cuenta con rol sistema entra aquí; la de rol admin, al panel de operación', 'login'],
             ['tarjetas y gráficas', 'Estado y Recursos', '—', 'Se refrescan cada 5 s', 'sistema-estado'],
             ['botón (radio)', 'En vivo · 24 horas', 'rango', '5m · 24h', 'sistema-recursos'],
             ['botón (radio) + texto', 'Estado de cada canal', 'estado · texto', 'ok · warn · fail', 'sistema-canales'],
