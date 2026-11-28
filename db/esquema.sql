@@ -291,19 +291,6 @@ CREATE TABLE evidencias (
   creado      timestamptz NOT NULL DEFAULT now()
 );
 
--- Calificaciones del servicio (del cliente final o del comercio)
-CREATE TABLE calificaciones (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  pedido_id       uuid NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
-  autor           text NOT NULL CHECK (autor IN ('cliente', 'comercio')),
-  repartidor_id   uuid REFERENCES repartidores(usuario_id),
-  estrellas       smallint NOT NULL CHECK (estrellas BETWEEN 1 AND 5),
-  comentario      text,
-  creado          timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (pedido_id, autor)
-);
-CREATE INDEX calificaciones_rep_idx ON calificaciones (repartidor_id, creado);
-
 -- =====================================================================
 --  8. DINERO: recaudo contraentrega, cierres de caja y liquidaciones
 -- =====================================================================
@@ -658,7 +645,6 @@ SELECT r.usuario_id AS repartidor_id, u.nombre, u.estado,
        count(p.id) FILTER (WHERE p.estado = 'entregado')                         AS entregas,
        count(p.id) FILTER (WHERE p.estado = 'no_entregado')                      AS no_entregas,
        count(p.id) FILTER (WHERE p.estado IN ('por_recoger', 'recogido', 'en_camino')) AS activos,
-       (SELECT round(avg(c.estrellas), 2) FROM calificaciones c WHERE c.repartidor_id = r.usuario_id) AS calificacion,
        (SELECT string_agg(zr.zona_id, ', ' ORDER BY zr.zona_id) FROM zona_repartidores zr WHERE zr.repartidor_id = r.usuario_id) AS zonas
 FROM repartidores r
 JOIN usuarios u ON u.id = r.usuario_id
@@ -732,8 +718,6 @@ CREATE TABLE metricas_repartidor_dia (
   cobrado           bigint NOT NULL DEFAULT 0,       -- efectivo recibido en entregas
   minutos_entrega   bigint NOT NULL DEFAULT 0,
   minutos_jornada   int NOT NULL DEFAULT 0,          -- tiempo conectado ese día
-  calificaciones    int NOT NULL DEFAULT 0,          -- cuántas recibió
-  estrellas         int NOT NULL DEFAULT 0,          -- suma de estrellas (promedio = estrellas / calificaciones)
   calculado         timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (repartidor_id, dia)
 );
@@ -761,11 +745,11 @@ BEGIN
   GROUP BY p.comercio_id;
 
   DELETE FROM metricas_repartidor_dia WHERE dia = p_dia;
-  INSERT INTO metricas_repartidor_dia (repartidor_id, dia, asignados, entregados, no_entregados, cobrado, minutos_entrega, minutos_jornada, calificaciones, estrellas)
+  INSERT INTO metricas_repartidor_dia (repartidor_id, dia, asignados, entregados, no_entregados, cobrado, minutos_entrega, minutos_jornada)
   SELECT r.usuario_id, p_dia,
          coalesce(pd.asignados, 0), coalesce(pd.entregados, 0), coalesce(pd.no_entregados, 0),
          coalesce(pd.cobrado, 0), coalesce(pd.minutos, 0),
-         coalesce(j.minutos, 0), coalesce(c.n, 0), coalesce(c.estrellas, 0)
+         coalesce(j.minutos, 0)
   FROM repartidores r
   LEFT JOIN LATERAL (
     SELECT count(*) AS asignados,
@@ -781,11 +765,7 @@ BEGIN
     SELECT sum(extract(epoch FROM coalesce(jo.fin, now()) - jo.inicio))::int / 60 AS minutos
     FROM jornadas jo WHERE jo.repartidor_id = r.usuario_id AND jo.inicio::date = p_dia
   ) j ON true
-  LEFT JOIN LATERAL (
-    SELECT count(*) AS n, sum(ca.estrellas) AS estrellas
-    FROM calificaciones ca WHERE ca.repartidor_id = r.usuario_id AND ca.creado::date = p_dia
-  ) c ON true
-  WHERE pd.asignados > 0 OR j.minutos > 0 OR c.n > 0;
+  WHERE pd.asignados > 0 OR j.minutos > 0;
 END $$;
 
 -- Periodos que usan el panel y la AppWeb
@@ -819,8 +799,7 @@ SELECT m.repartidor_id, pe.periodo, pe.orden,
        round(100.0 * sum(m.entregados) / nullif(sum(m.entregados) + sum(m.no_entregados), 0), 1) AS efectividad,
        sum(m.cobrado)::bigint AS cobrado,
        round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio,
-       round(sum(m.minutos_jornada) / 60.0, 1) AS horas_jornada,
-       round(sum(m.estrellas)::numeric / nullif(sum(m.calificaciones), 0), 2) AS calificacion
+       round(sum(m.minutos_jornada) / 60.0, 1) AS horas_jornada
 FROM periodos pe
 JOIN metricas_repartidor_dia m ON m.dia >= pe.desde
 GROUP BY m.repartidor_id, pe.periodo, pe.orden;

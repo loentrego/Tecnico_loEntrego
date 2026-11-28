@@ -115,7 +115,6 @@ window.ENTRADAS = (() => {
         ['entregas', 'entero', true, 96, 'En el periodo'],
         ['no_entregas', 'entero', true, 4, ''],
         ['activos', 'entero', true, 3, 'Pedidos en curso ahora'],
-        ['calificacion', 'decimal', false, 4.8, '1 a 5'],
       ],
     },
   };
@@ -856,7 +855,6 @@ window.ENTRADAS = (() => {
   const EXTRA = [
     ['GET', '/api/salud', 'Monitoreo', 'Responde si la API y la base están arriba.', '—'],
     ['POST', '/api/refrescar', 'AppWeb · Panel', 'Cambia el token de refresco por uno nuevo cuando el de acceso vence.', 'sesiones'],
-    ['POST', '/api/publico/calificar/:token', 'Cliente final', 'Califica la entrega desde el enlace que recibe.', 'calificaciones'],
     ['POST', '/api/admin/cierres', 'Admin', 'Registra lo que entregó el repartidor al cerrar caja.', 'cierres_caja'],
     ['POST', '/api/admin/liquidaciones', 'Admin', 'Arma, aprueba y marca como pagada una liquidación.', 'liquidaciones, liquidacion_pedidos'],
     ['PUT', '/api/admin/canales', 'Admin', 'Cambia lo que muestra la página de mantenimiento.', 'estado_canales, mantenimientos'],

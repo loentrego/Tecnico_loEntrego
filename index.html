@@ -319,12 +319,12 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
           <thead><tr><th>Vista</th><th>Qué entrega</th><th>Dónde se usa</th></tr></thead>
           <tbody>
             <tr><td><code>v_resumen_diario</code></td><td>Pedidos, entregados, no entregados, activos, efectividad, recaudo e ingresos por envío, por día.</td><td>Resumen (Hoy, 1 mes, 6 meses, 1 año, Histórico)</td></tr>
-            <tr><td><code>v_repartidores</code></td><td>Entregas, no entregas, pedidos activos, calificación promedio y zonas de cada repartidor.</td><td>Repartidores</td></tr>
+            <tr><td><code>v_repartidores</code></td><td>Entregas, no entregas, pedidos activos y zonas de cada repartidor.</td><td>Repartidores</td></tr>
             <tr><td><code>v_comercios</code></td><td>Pedidos, entregados, último pedido y recaudo de cada comercio.</td><td>Comercios</td></tr>
             <tr><td><code>v_demanda_puntos</code></td><td>Coordenadas de los pedidos por día y zona (sin localidades).</td><td>Mapa → capa Calor</td></tr>
             <tr><td><code>v_cobertura_zonas</code></td><td>Repartidores por zona, promedio de pedidos de los últimos 30 días y cuántos repartidores faltan.</td><td>Mapa → Zonas de reparto</td></tr>
             <tr><td><code>v_metricas_comercio</code></td><td>Por comercio y periodo: pedidos, entregados, no entregados, cancelados, efectividad, recaudo, tarifas y minutos promedio de entrega.</td><td>Comercios y AppWeb del comercio (Hoy, Semana, Mes, 6 meses, Año, Histórico)</td></tr>
-            <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado, minutos promedio, horas conectado y calificación.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
+            <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado, minutos promedio y horas conectado.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
           </tbody>
         </table>
       </div>
@@ -361,7 +361,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · zonas_reparto</small></div>
         <div class="n-box n-p" style="grid-area: ped"><b>pedidos</b><small>el centro de todo</small></div>
         <div class="n-box n-d" style="grid-area: din"><b>dinero</b><small>cierres_caja · liquidaciones · pagos_repartidor</small></div>
-        <div class="n-box n-h" style="grid-area: his"><b>lo que pasa</b><small>pedido_eventos · asignaciones · evidencias · calificaciones · notificaciones</small></div>
+        <div class="n-box n-h" style="grid-area: his"><b>lo que pasa</b><small>pedido_eventos · asignaciones · evidencias · notificaciones</small></div>
         <svg class="n-lineas" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
           <path d="M150 150 L50 50 M150 150 L150 40 M150 150 L250 50 M150 150 L50 250 M150 150 L250 250 M150 150 L150 265"/>
         </svg>
@@ -417,8 +417,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=15"></script>
-<script src="datos/entradas.js?v=18"></script>
-<script src="script.js?v=16"></script>
+<script src="datos/esquema.js?v=16"></script>
+<script src="datos/entradas.js?v=19"></script>
+<script src="script.js?v=17"></script>
 </body>
 </html>
