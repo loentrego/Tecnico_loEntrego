@@ -183,8 +183,7 @@ CREATE TABLE comercios (
   direccion         text NOT NULL,
   detalle           text,                            -- local, bodega, piso, a quién preguntar
   area_id           text NOT NULL REFERENCES areas(id),
-  punto             geography(Point, 4326),          -- coordenadas de la dirección (las pone el backend)
-  place_id          text                             -- Place ID de Google Maps
+  punto             geography(Point, 4326)           -- coordenadas de la dirección (las pone el backend)
 );   -- nombre comercial, celular, correo y fechas: en usuarios
 CREATE TRIGGER t_comercios_act AFTER UPDATE ON comercios FOR EACH ROW EXECUTE FUNCTION tocar_usuario('id');
 CREATE INDEX comercios_punto_idx ON comercios USING gist (punto);
@@ -196,7 +195,7 @@ CREATE SEQUENCE pedidos_codigo_seq START 1001;
 
 CREATE TABLE pedidos (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  codigo                text NOT NULL UNIQUE DEFAULT 'LOE-' || lpad(nextval('pedidos_codigo_seq')::text, 7, '0') CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- prefijo del repartidor + su contador (CRE-0000042, lo pone el backend); LOE + secuencia si aún no tiene repartidor
+  codigo                text NOT NULL UNIQUE CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- número de guía: lo arma la base al registrar el pedido (CRE-0000042)
   comercio_id           uuid NOT NULL REFERENCES comercios(id),
   creado_por            uuid REFERENCES usuarios(id),
   -- Destinatario (formulario "Nuevo pedido" de la AppWeb)
@@ -204,10 +203,9 @@ CREATE TABLE pedidos (
   destinatario_telefono text NOT NULL CHECK (destinatario_telefono ~ '^[0-9]{7,10}$'),
   direccion             text NOT NULL,
   notas                 text,
-  -- Ubicación: el área la elige el comercio; coordenadas, place_id y zona los pone el backend
+  -- Ubicación: el área la elige el comercio; las coordenadas las pone el backend y la zona, la base
   area_id               text NOT NULL REFERENCES areas(id),
   punto                 geography(Point, 4326),        -- dirección geocodificada
-  place_id              text,                          -- Place ID de Google Maps
   zona_id               text REFERENCES zonas(id),
   fuera_de_zona         boolean NOT NULL DEFAULT false, -- quedó en un hueco: revisar
   -- Dinero
@@ -464,9 +462,11 @@ RETURNS TABLE (id text, nombre text, dentro boolean) LANGUAGE sql STABLE AS $$
   LIMIT 1
 $$;
 
--- Al crear un pedido: tarifa del área, zona y el repartidor de esa zona (si hay punto geocodificado)
+-- Al registrar un pedido, en este orden: tarifa del área → zona por la dirección → repartidor de esa zona
+-- → número de guía (prefijo del repartidor + su contador, ej. CRE-0000042).
+-- Si no tiene repartidor (sin coordenadas o el de la zona está pausado) la guía sale con LOE + secuencia general.
 CREATE FUNCTION pedido_al_crear() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE z record; lat double precision; lon double precision;
+DECLARE z record; lat double precision; lon double precision; pre text; num int;
 BEGIN
   IF NEW.estado <> 'por_recoger' THEN RAISE EXCEPTION 'Un pedido nuevo empieza en por_recoger'; END IF;
   IF NEW.tarifa IS NULL THEN
@@ -484,6 +484,15 @@ BEGIN
         JOIN usuarios u ON u.id = zo.repartidor_id AND u.estado = 'activo'
       WHERE zo.id = NEW.zona_id;
     END IF;
+  END IF;
+  IF NEW.codigo IS NULL THEN
+    IF NEW.repartidor_id IS NOT NULL THEN
+      UPDATE repartidores SET contador_pedidos = contador_pedidos + 1
+       WHERE usuario_id = NEW.repartidor_id AND prefijo IS NOT NULL
+       RETURNING prefijo, contador_pedidos INTO pre, num;   -- dos pedidos a la vez nunca reciben el mismo número
+    END IF;
+    IF pre IS NULL THEN pre := 'LOE'; num := nextval('pedidos_codigo_seq'); END IF;
+    NEW.codigo := pre || '-' || lpad(num::text, 7, '0');
   END IF;
   RETURN NEW;
 END $$;

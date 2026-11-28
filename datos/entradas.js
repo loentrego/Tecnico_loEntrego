@@ -282,7 +282,7 @@ window.ENTRADAS = (() => {
           llamadas: [
             {
               id: 'crear-pedido', nombre: 'Crear pedido', metodo: 'POST', ruta: '/api/pedidos', auth,
-              cuando: 'Al tocar "Crear pedido". La API geocodifica la dirección; guarda coordenadas y Place ID; la base pone tarifa, zona y repartidor.',
+              cuando: 'Al tocar "Crear pedido". La API geocodifica la dirección y guarda las coordenadas; la base pone tarifa, zona, repartidor y el número de guía. El formulario no muestra número: aparece cuando el pedido queda registrado.',
               envia: [
                 ['zona', 'texto', true, 'bogota', 'bogota · funza · soacha → pedidos.area_id'],
                 ['direccion', 'texto', true, 'Calle 72 #10-34', ''],
