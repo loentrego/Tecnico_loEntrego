@@ -212,15 +212,12 @@ CREATE TABLE pedidos (
   tarifa                bigint NOT NULL CHECK (tarifa >= 0),            -- envío congelado al crear
   -- Operación
   repartidor_id         uuid REFERENCES repartidores(usuario_id),
-  estado                estado_pedido NOT NULL DEFAULT 'por_recoger',
-  motivo                motivo_no_entrega,
-  motivo_detalle        text,
+  estado                estado_pedido NOT NULL DEFAULT 'por_recoger',   -- el último evento; cambia solo registrando un evento
   intentos              smallint NOT NULL DEFAULT 1 CHECK (intentos >= 1),
   pedido_origen_id      uuid REFERENCES pedidos(id),   -- reintento de un "no entregado"
   creado                timestamptz NOT NULL DEFAULT now(),   -- se entrega al día siguiente
   actualizado           timestamptz NOT NULL DEFAULT now(),
   cerrado_en            timestamptz,                   -- cuando llega a entregado/no_entregado/cancelado
-  CHECK ((estado = 'no_entregado') = (motivo IS NOT NULL)),
   CHECK (estado = 'por_recoger' OR estado = 'cancelado' OR repartidor_id IS NOT NULL)
 );
 CREATE INDEX pedidos_comercio_idx   ON pedidos (comercio_id, creado DESC);
@@ -231,13 +228,17 @@ CREATE INDEX pedidos_dia_idx        ON pedidos (dia_de(creado));
 CREATE TRIGGER t_pedidos_act BEFORE UPDATE ON pedidos FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
 -- Historial: cada cambio de estado con su hora (la "mini-ruta" de la AppWeb)
+-- Para cambiar el estado de un pedido se registra un evento aquí: la base valida el paso
+-- y actualiza pedidos.estado sola. Si es "no entregado", el evento lleva el motivo.
 CREATE TABLE pedido_eventos (
   id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   pedido_id   uuid NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
   estado      estado_pedido NOT NULL,
   usuario_id  uuid REFERENCES usuarios(id),          -- quién lo cambió (null = sistema)
-  nota        text,
-  ocurrido    timestamptz NOT NULL DEFAULT now()
+  motivo      motivo_no_entrega,                     -- por qué no se entregó (solo en no_entregado)
+  nota        text,                                  -- lo que escribió quien hizo el cambio
+  ocurrido    timestamptz NOT NULL DEFAULT now(),
+  CHECK ((estado = 'no_entregado') = (motivo IS NOT NULL))
 );
 CREATE INDEX pedido_eventos_idx ON pedido_eventos (pedido_id, ocurrido);
 
@@ -496,9 +497,8 @@ CREATE TRIGGER t_pedidos_crear BEFORE INSERT ON pedidos FOR EACH ROW EXECUTE FUN
 -- Historial y asignaciones automáticos
 CREATE FUNCTION pedido_registrar() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF TG_OP = 'INSERT' OR NEW.estado IS DISTINCT FROM OLD.estado THEN
-    INSERT INTO pedido_eventos (pedido_id, estado, usuario_id, nota)
-    VALUES (NEW.id, NEW.estado, nullif(current_setting('loentrego.usuario', true), '')::uuid, NEW.motivo_detalle);
+  IF TG_OP = 'INSERT' THEN   -- primer evento: lo crea el comercio
+    INSERT INTO pedido_eventos (pedido_id, estado, usuario_id) VALUES (NEW.id, 'por_recoger', NEW.comercio_id);
   END IF;
   IF NEW.repartidor_id IS NOT NULL AND (TG_OP = 'INSERT' OR NEW.repartidor_id IS DISTINCT FROM OLD.repartidor_id) THEN
     INSERT INTO asignaciones (pedido_id, repartidor_anterior, repartidor_nuevo, hecho_por)
@@ -509,24 +509,50 @@ BEGIN
 END $$;
 CREATE TRIGGER t_pedidos_registrar AFTER INSERT OR UPDATE ON pedidos FOR EACH ROW EXECUTE FUNCTION pedido_registrar();
 
--- Reglas del flujo: solo se avanza en orden y los estados finales no se reabren
-CREATE FUNCTION pedido_validar_estado() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE orden constant estado_pedido[] := ARRAY['por_recoger', 'recogido', 'en_camino', 'entregado']::estado_pedido[];
+-- Reglas del flujo, al registrar un evento: solo se avanza en orden y los estados finales no se reabren
+CREATE FUNCTION evento_validar() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE actual estado_pedido; cod text;
+        orden constant estado_pedido[] := ARRAY['por_recoger', 'recogido', 'en_camino', 'entregado']::estado_pedido[];
 BEGIN
-  IF NEW.estado = OLD.estado THEN RETURN NEW; END IF;
-  IF OLD.estado IN ('entregado', 'no_entregado', 'cancelado') THEN
-    RAISE EXCEPTION 'El pedido % ya está cerrado (%)', OLD.codigo, OLD.estado;
+  SELECT estado, codigo INTO actual, cod FROM pedidos WHERE id = NEW.pedido_id FOR UPDATE;
+  IF NOT EXISTS (SELECT 1 FROM pedido_eventos WHERE pedido_id = NEW.pedido_id) THEN   -- el de la creación
+    IF NEW.estado <> 'por_recoger' THEN RAISE EXCEPTION 'Un pedido empieza en por_recoger'; END IF;
+    RETURN NEW;
   END IF;
-  IF NEW.estado = 'cancelado' AND OLD.estado <> 'por_recoger' THEN
+  IF NEW.estado = actual THEN RAISE EXCEPTION 'El pedido % ya está en %', cod, actual; END IF;
+  IF actual IN ('entregado', 'no_entregado', 'cancelado') THEN
+    RAISE EXCEPTION 'El pedido % ya está cerrado (%)', cod, actual;
+  END IF;
+  IF NEW.estado = 'cancelado' AND actual <> 'por_recoger' THEN
     RAISE EXCEPTION 'Solo se cancela un pedido que no se ha recogido';
   END IF;
-  IF NEW.estado = ANY (orden) AND array_position(orden, NEW.estado) <> array_position(orden, OLD.estado) + 1 THEN
-    RAISE EXCEPTION 'Paso no válido: % → %', OLD.estado, NEW.estado;
+  IF NEW.estado = ANY (orden) AND array_position(orden, NEW.estado) <> array_position(orden, actual) + 1 THEN
+    RAISE EXCEPTION 'Paso no válido: % → %', actual, NEW.estado;
   END IF;
-  IF NEW.estado IN ('entregado', 'no_entregado', 'cancelado') THEN NEW.cerrado_en := now(); END IF;
   RETURN NEW;
 END $$;
-CREATE TRIGGER t_pedidos_estado BEFORE UPDATE OF estado ON pedidos FOR EACH ROW EXECUTE FUNCTION pedido_validar_estado();
+CREATE TRIGGER t_eventos_validar BEFORE INSERT ON pedido_eventos FOR EACH ROW EXECUTE FUNCTION evento_validar();
+
+-- El evento actualiza el pedido (estado y, si se cerró, cerrado_en)
+CREATE FUNCTION evento_aplicar() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE pedidos SET estado = NEW.estado,
+         cerrado_en = CASE WHEN NEW.estado IN ('entregado', 'no_entregado', 'cancelado') THEN NEW.ocurrido ELSE cerrado_en END
+   WHERE id = NEW.pedido_id AND estado IS DISTINCT FROM NEW.estado;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER t_eventos_aplicar AFTER INSERT ON pedido_eventos FOR EACH ROW EXECUTE FUNCTION evento_aplicar();
+
+-- Nadie cambia pedidos.estado a mano: tiene que coincidir con el último evento
+CREATE FUNCTION pedido_solo_por_evento() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.estado IS DISTINCT FROM OLD.estado AND NEW.estado IS DISTINCT FROM
+     (SELECT e.estado FROM pedido_eventos e WHERE e.pedido_id = NEW.id ORDER BY e.id DESC LIMIT 1) THEN
+    RAISE EXCEPTION 'El estado se cambia registrando un evento en pedido_eventos';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER t_pedidos_estado BEFORE UPDATE OF estado ON pedidos FOR EACH ROW EXECUTE FUNCTION pedido_solo_por_evento();
 
 -- =====================================================================
 --  12. VISTAS PARA EL PANEL (Resumen, Comercios, Repartidores, Mapa)

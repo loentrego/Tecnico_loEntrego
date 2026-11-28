@@ -68,7 +68,7 @@ window.ENTRADAS = (() => {
         ['tarifa', 'entero', true, 10000, 'Envío congelado al crear'],
         ['cobro', 'entero', true, 45000, ''],
         ['estado', 'texto', true, 'en_camino', ''],
-        ['motivo', 'texto', false, null, 'Solo si no_entregado: no_contesta · direccion · rechazado · ausente · otro'],
+        ['motivo', 'texto', false, null, 'Solo si no_entregado (sale de su evento en pedido_eventos): no_contesta · direccion · rechazado · ausente · otro'],
         ['comercio.nombre', 'texto', true, 'Tienda Central', ''],
         ['comercio.direccion', 'texto', true, 'Calle 80 #15-20', 'Dónde se recoge'],
         ['repartidor.nombre', 'texto', false, 'Camilo Restrepo', 'Vacío si aún no hay'],
