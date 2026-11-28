@@ -81,7 +81,7 @@ fi
 sudo -u postgres psql -d "$DB_NAME" -c 'CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS citext; CREATE EXTENSION IF NOT EXISTS pgcrypto;'
 # Postgres escucha solo en localhost (valor por defecto en Ubuntu); no se abre el 5432
 
-paso "Redis (colas de notificaciones y límites de intentos), solo en localhost"
+paso "Redis (límites de intentos de inicio de sesión), solo en localhost"
 apt-get install -y -q redis-server
 sed -i 's/^supervised .*/supervised systemd/' /etc/redis/redis.conf
 systemctl enable --now redis-server

@@ -165,7 +165,7 @@ rm /srv/loentrego/mantenimiento/app.on
             <tr><td><b>PostgreSQL</b></td><td>16</td><td>La base de datos de todo el ecosistema.</td><td><code>postgresql postgresql-contrib</code></td></tr>
             <tr><td><b>PostGIS</b></td><td>3.4</td><td>Zonas de reparto y coordenadas de entrega. Asigna el pedido a la zona correcta.</td><td><code>postgresql-16-postgis-3</code></td></tr>
             <tr><td><b>GDAL (ogr2ogr)</b></td><td>3.8</td><td>Importa zonas desde GeoJSON o shapefile.</td><td><code>gdal-bin</code></td></tr>
-            <tr><td><b>Redis</b></td><td>7</td><td>Cola de correos y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
+            <tr><td><b>Redis</b></td><td>7</td><td>Conteo de intentos de inicio de sesión. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
             <tr><th colspan="4" class="grupo">Aplicación</th></tr>
             <tr><td><b>Node.js</b></td><td>22 LTS</td><td>Corre la API.</td><td><code>nodejs</code> (NodeSource)</td></tr>
             <tr><td><b>systemd</b></td><td>—</td><td>Arranca la API con el servidor y la reinicia si se cae (<code>loentrego-api.service</code>).</td><td>incluido</td></tr>
@@ -213,7 +213,6 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <article class="svc"><span class="svc-tag">Código y despliegue</span><h4>GitHub</h4><p>Organiza el código de los 5 repositorios. Con cada push a <code>main</code>, GitHub Actions copia los archivos al VPS. GitHub Pages solo publica el mockup con datos ficticios.</p><small>Secretos: <code>VPS_HOST</code> · <code>VPS_SSH_KEY</code> · <code>VPS_KNOWN</code></small></article>
         <article class="svc"><span class="svc-tag">Direcciones</span><h4>Google Maps Geocoding API</h4><p>Convierte "Calle 72 #10-34" en coordenadas y un Place ID para asignar la zona. Lee bien la nomenclatura colombiana.</p><small><code>GOOGLE_MAPS_KEY</code> · alternativa: Nominatim (OSM)</small></article>
         <article class="svc"><span class="svc-tag">Archivos</span><h4>Cloudflare R2 o Backblaze B2</h4><p>Fotos de evidencia, documentos de repartidores, soportes de pago y los respaldos cifrados de la base.</p><small><code>S3_ENDPOINT</code> · <code>S3_KEY</code> · <code>S3_SECRET</code></small></article>
-        <article class="svc"><span class="svc-tag">Correo</span><h4>Amazon SES o Brevo</h4><p>Correos automáticos: confirmación de solicitudes, liquidaciones y recuperar clave. Con SPF, DKIM y DMARC.</p><small><code>SMTP_URL</code></small></article>
       </div>
 
       <h3 class="h3">Recomendados</h3>
@@ -290,7 +289,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
     <section class="sec" id="base" aria-labelledby="t-base">
       <p class="num">06</p>
       <h2 id="t-base">Base de datos</h2>
-      <p class="lead">PostgreSQL 16 con PostGIS. Un solo esquema guarda <b>todo el ecosistema</b>, organizado en 10 áreas. El archivo completo, probado en una base real, está en <code>db/esquema.sql</code>.</p>
+      <p class="lead">PostgreSQL 16 con PostGIS. Un solo esquema guarda <b>todo el ecosistema</b>, organizado en 9 áreas. El archivo completo, probado en una base real, está en <code>db/esquema.sql</code>.</p>
 
       <div class="dominios" id="dominios"></div>
 
@@ -361,7 +360,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · zonas_reparto</small></div>
         <div class="n-box n-p" style="grid-area: ped"><b>pedidos</b><small>el centro de todo</small></div>
         <div class="n-box n-d" style="grid-area: din"><b>dinero</b><small>cierres_caja · liquidaciones · pagos_repartidor</small></div>
-        <div class="n-box n-h" style="grid-area: his"><b>lo que pasa</b><small>pedido_eventos · asignaciones · evidencias · notificaciones</small></div>
+        <div class="n-box n-h" style="grid-area: his"><b>lo que pasa</b><small>pedido_eventos · asignaciones · evidencias</small></div>
         <svg class="n-lineas" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
           <path d="M150 150 L50 50 M150 150 L150 40 M150 150 L250 50 M150 150 L50 250 M150 150 L250 250 M150 150 L150 265"/>
         </svg>
@@ -398,7 +397,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <h2 id="t-arch">Archivos</h2>
       <div class="downloads">
         <a class="dl" href="db/esquema.sql" download><span class="dl-ext">SQL</span><b>esquema.sql</b><small>Todas las tablas, tipos, funciones, reglas y vistas</small></a>
-        <a class="dl" href="db/semilla.sql" download><span class="dl-ext">SQL</span><b>semilla.sql</b><small>Municipios, tarifas, canales, plantillas y usuarios de prueba</small></a>
+        <a class="dl" href="db/semilla.sql" download><span class="dl-ext">SQL</span><b>semilla.sql</b><small>Municipios, tarifas, canales y usuarios de prueba</small></a>
         <a class="dl" href="vps/instalar.sh" download><span class="dl-ext">SH</span><b>instalar.sh</b><small>Instala y configura el VPS completo</small></a>
         <a class="dl" href="vps/nginx-app.conf" download><span class="dl-ext">CONF</span><b>nginx-app.conf</b><small>Los 3 sitios: web, app y admin</small></a>
         <a class="dl" href="vps/nginx-comun.conf" download><span class="dl-ext">CONF</span><b>nginx-comun.conf</b><small>Común a los 3 sitios y página de mantenimiento</small></a>
@@ -417,8 +416,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=16"></script>
-<script src="datos/entradas.js?v=19"></script>
-<script src="script.js?v=17"></script>
+<script src="datos/esquema.js?v=17"></script>
+<script src="datos/entradas.js?v=20"></script>
+<script src="script.js?v=18"></script>
 </body>
 </html>

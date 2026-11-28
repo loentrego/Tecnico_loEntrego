@@ -50,8 +50,6 @@ CREATE TYPE estado_usuario AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
 CREATE TYPE estado_liquidacion AS ENUM ('borrador', 'aprobada', 'pagada', 'anulada');
 CREATE TYPE estado_cierre AS ENUM ('abierto', 'cuadrado', 'con_diferencia');
-CREATE TYPE canal_notificacion AS ENUM ('correo');   -- por ahora solo correo (no hay notificaciones push)
-CREATE TYPE estado_envio AS ENUM ('pendiente', 'enviado', 'fallido');
 CREATE TYPE red_social AS ENUM ('google', 'instagram', 'facebook');
 CREATE TYPE estado_canal AS ENUM ('ok', 'warn', 'fail');   -- igual que la página de mantenimiento
 
@@ -458,34 +456,7 @@ CREATE TABLE resenas (
 );
 
 -- =====================================================================
---  11. NOTIFICACIONES (por ahora solo correo)
--- =====================================================================
-CREATE TABLE plantillas (
-  id          text PRIMARY KEY,                     -- 'pedido_en_camino', 'pedido_entregado', …
-  canal       canal_notificacion NOT NULL,
-  cuerpo      text NOT NULL,                        -- con variables {{nombre}}, {{codigo}}…
-  activa      boolean NOT NULL DEFAULT true
-);
-
-CREATE TABLE notificaciones (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  canal         canal_notificacion NOT NULL,
-  plantilla_id  text REFERENCES plantillas(id),
-  usuario_id    uuid REFERENCES usuarios(id),      -- si es para alguien con cuenta…
-  destino       text NOT NULL,                     -- …o un celular/correo (cliente final)
-  pedido_id     uuid REFERENCES pedidos(id),
-  variables     jsonb NOT NULL DEFAULT '{}',
-  estado        estado_envio NOT NULL DEFAULT 'pendiente',
-  intentos      smallint NOT NULL DEFAULT 0,
-  error         text,
-  id_externo    text,                              -- id del proveedor (para el webhook de estado)
-  creado        timestamptz NOT NULL DEFAULT now(),
-  enviado_en    timestamptz
-);
-CREATE INDEX notificaciones_pendientes_idx ON notificaciones (creado) WHERE estado = 'pendiente';
-
--- =====================================================================
---  12. SISTEMA: estado de canales (página de mantenimiento), ajustes y auditoría
+--  11. SISTEMA: estado de canales (página de mantenimiento), ajustes y auditoría
 -- =====================================================================
 
 -- Lo que muestra la página de mantenimiento (ESTADO en frontend-maintenance/Script.js)
@@ -530,7 +501,7 @@ CREATE TABLE auditoria (
 CREATE INDEX auditoria_registro_idx ON auditoria (tabla, registro_id, ocurrido DESC);
 
 -- =====================================================================
---  13. FUNCIONES DE TERRITORIO Y AUTOASIGNACIÓN
+--  12. FUNCIONES DE TERRITORIO Y AUTOASIGNACIÓN
 -- =====================================================================
 
 -- Zona para un punto: la que lo contiene (mayor prioridad) o, si cae en un hueco, la más cercana
@@ -623,7 +594,7 @@ END $$;
 CREATE TRIGGER t_pedidos_estado BEFORE UPDATE OF estado ON pedidos FOR EACH ROW EXECUTE FUNCTION pedido_validar_estado();
 
 -- =====================================================================
---  14. VISTAS PARA EL PANEL (Resumen, Comercios, Repartidores, Mapa)
+--  13. VISTAS PARA EL PANEL (Resumen, Comercios, Repartidores, Mapa)
 -- =====================================================================
 
 -- Resumen por día
@@ -689,7 +660,7 @@ WHERE z.archivado_en IS NULL
 GROUP BY z.id, z.nombre, z.capacidad_diaria, d.promedio;
 
 -- =====================================================================
---  15. MÉTRICAS POR DÍA (comercios y repartidores)
+--  14. MÉTRICAS POR DÍA (comercios y repartidores)
 --  Una fila por comercio o repartidor y día. Los periodos (hoy, semana,
 --  mes, 6 meses, año, histórico) se sacan sumando filas. El backend llama
 --  refrescar_metricas() cada pocos minutos para hoy y al cierre del día.

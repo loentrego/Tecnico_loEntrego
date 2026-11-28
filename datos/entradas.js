@@ -414,7 +414,7 @@ window.ENTRADAS = (() => {
               cuando: 'Al terminar de deslizar.',
               envia: [['estado', 'texto', true, 'en_camino', 'El siguiente: recogido → en_camino → entregado']],
               recibe: [['pedido', 'PedidoResumen', true, null, ''], ['mensaje', 'texto', false, '¡Entregado! +$45.000', 'Para el aviso']],
-              tablas: 'pedidos, pedido_eventos, notificaciones', errores: [['409', 'Paso no válido (la base lo rechaza)']],
+              tablas: 'pedidos, pedido_eventos', errores: [['409', 'Paso no válido (la base lo rechaza)']],
             },
             {
               id: 'novedad', nombre: 'Reportar no entregado', metodo: 'POST', ruta: '/api/pedidos/:id/estado', auth,
@@ -425,7 +425,7 @@ window.ENTRADAS = (() => {
                 ['detalle', 'texto', false, 'Timbré 3 veces', 'Opcional'],
               ],
               recibe: [['pedido', 'PedidoResumen', true, null, '']],
-              tablas: 'pedidos, pedido_eventos, notificaciones', errores: [['422', 'Falta el motivo']],
+              tablas: 'pedidos, pedido_eventos', errores: [['422', 'Falta el motivo']],
             },
             {
               id: 'evidencia', nombre: 'Subir evidencia', metodo: 'POST', ruta: '/api/pedidos/:id/evidencias', auth,

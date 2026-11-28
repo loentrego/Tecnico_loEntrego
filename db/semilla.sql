@@ -27,9 +27,6 @@ INSERT INTO ajustes (clave, valor, descripcion) VALUES
   ('horario_operacion',  '{"desde":"07:00","hasta":"19:00","dias":[1,2,3,4,5,6]}', 'Horario de recogidas y entregas'),
   ('correo_contacto',    '"contacto@loentrego.com"', 'Correo de contacto');
 
-INSERT INTO plantillas (id, canal, cuerpo) VALUES
-  ('solicitud_recibida', 'correo', 'Recibimos tu solicitud, {{comercio}}. Te escribimos en menos de un día hábil.');
-
 -- Usuarios de prueba (los mismos de la demo). ¡Cambiar las claves en producción!
 INSERT INTO usuarios (rol, usuario, clave_hash, nombre, celular) VALUES
   ('admin',      'admin',      crypt('admin123',  gen_salt('bf')), 'Administrador general', NULL),
