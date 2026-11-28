@@ -1,19 +1,16 @@
 -- =====================================================================
 --  LoEntrego · Datos iniciales (catálogos y usuarios de prueba)
 --  Correr después de esquema.sql:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/semilla.sql
---  Las zonas de reparto (polígonos) se cargan con el SQL que genera el panel
+--  Las zonas (polígonos) se cargan con el SQL que genera el panel
 --  (window.LEMapa.sql()) o con ogr2ogr: ver frontend_admin/docs/zonas-geojson-postgis.md
 -- =====================================================================
 BEGIN;
 
-INSERT INTO municipios (id, nombre, departamento) VALUES
-  ('bogota', 'Bogotá', 'Bogotá D.C.'),
-  ('funza',  'Funza',  'Cundinamarca'),
-  ('soacha', 'Soacha', 'Cundinamarca');
-
--- Tarifa de envío actual: $10.000 en los tres municipios
-INSERT INTO tarifas (municipio_id, valor, vigente_desde) VALUES
-  ('bogota', 10000, '2026-01-01'), ('funza', 10000, '2026-01-01'), ('soacha', 10000, '2026-01-01');
+-- Áreas de cobertura con su tarifa de envío (hoy $10.000 en las tres)
+INSERT INTO areas (id, nombre, departamento, tarifa) VALUES
+  ('bogota', 'Bogotá', 'Bogotá D.C.',  10000),
+  ('funza',  'Funza',  'Cundinamarca', 10000),
+  ('soacha', 'Soacha', 'Cundinamarca', 10000);
 
 -- Lo que muestra la página de mantenimiento
 INSERT INTO estado_canales (canal, estado, texto, orden) VALUES
@@ -33,7 +30,7 @@ INSERT INTO usuarios (rol, usuario, clave_hash, nombre, celular) VALUES
   ('comercio',   'demo',       crypt('demo123',   gen_salt('bf')), 'Tienda Demo',           '3001112233'),
   ('repartidor', 'repartidor', crypt('reparto123', gen_salt('bf')), 'Carlos Repartidor',    '3104445566');
 
-INSERT INTO comercios (id, tipo, direccion, detalle, municipio_id)
+INSERT INTO comercios (id, tipo, direccion, detalle, area_id)
 SELECT id, 'ecommerce', 'Calle 80 #15-20', 'Bodega', 'bogota' FROM usuarios WHERE usuario = 'demo';
 
 INSERT INTO repartidores (usuario_id, documento, prefijo)

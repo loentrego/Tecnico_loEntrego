@@ -11,7 +11,7 @@
 --  Convenciones
 --    · Nombres en español, en minúscula y con guion bajo.
 --    · Llaves: uuid (gen_random_uuid) salvo catálogos pequeños con texto estable
---      (municipios, zonas) que ya usan los frontends.
+--      (áreas, zonas) que ya usan los frontends.
 --    · Dinero en pesos colombianos, entero (bigint): no hay centavos.
 --    · Fechas con zona horaria (timestamptz). La operación es en America/Bogota.
 --    · Coordenadas WGS84 (SRID 4326). Puntos como geography; polígonos como geometry.
@@ -126,25 +126,18 @@ CREATE INDEX intentos_ingreso_idx ON intentos_ingreso (usuario, ocurrido DESC);
 -- =====================================================================
 --  3. TERRITORIO (PostGIS)
 -- =====================================================================
-CREATE TABLE municipios (
+-- Áreas de cobertura: cada lugar donde opera LoEntrego (hoy Bogotá, Funza y Soacha).
+-- Para crecer a otra ciudad o municipio se agrega una fila. La tarifa es la de hoy:
+-- cada pedido guarda la suya al crearse, así que cambiarla no altera el historial.
+CREATE TABLE areas (
   id            text PRIMARY KEY,                    -- 'bogota', 'funza', 'soacha'
   nombre        text NOT NULL,
   departamento  text NOT NULL,
-  activo        boolean NOT NULL DEFAULT true,       -- si hay cobertura
-  geom          geometry(MultiPolygon, 4326)
+  tarifa        bigint NOT NULL CHECK (tarifa >= 0), -- envío en pesos
+  activa        boolean NOT NULL DEFAULT true,       -- si hay cobertura
+  contorno      geometry(MultiPolygon, 4326)         -- límite del área (PostGIS)
 );
-CREATE INDEX municipios_geom_idx ON municipios USING gist (geom);
-
--- Tarifas de envío con vigencia (hoy: $10.000 en los tres municipios)
-CREATE TABLE tarifas (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  municipio_id    text NOT NULL REFERENCES municipios(id),
-  valor           bigint NOT NULL CHECK (valor >= 0),
-  vigente_desde   date NOT NULL DEFAULT current_date,
-  vigente_hasta   date,
-  CHECK (vigente_hasta IS NULL OR vigente_hasta > vigente_desde),
-  UNIQUE (municipio_id, vigente_desde)
-);
+CREATE INDEX areas_contorno_idx ON areas USING gist (contorno);
 
 -- =====================================================================
 --  4. REPARTIDORES
@@ -160,30 +153,25 @@ CREATE TABLE repartidores (
 CREATE TRIGGER t_repartidores_act AFTER UPDATE ON repartidores FOR EACH ROW EXECUTE FUNCTION tocar_usuario('usuario_id');
 
 -- =====================================================================
---  5. ZONAS DE REPARTO (editables en el panel: Mapa → Zonas de reparto)
+--  5. ZONAS (editables en el panel: Mapa → Zonas de reparto)
 -- =====================================================================
-CREATE TABLE zonas_reparto (
+-- Cada zona tiene un solo repartidor (un repartidor puede tener varias zonas).
+-- El contorno es un polígono PostGIS: todos sus puntos van en una sola columna;
+-- el panel lo envía y lo recibe como GeoJSON (ST_GeomFromGeoJSON / ST_AsGeoJSON).
+CREATE TABLE zonas (
   id                text PRIMARY KEY,                -- id estable que usa el panel
   nombre            text NOT NULL,
-  municipio_id      text NOT NULL REFERENCES municipios(id),
-  capacidad_diaria  int NOT NULL DEFAULT 12 CHECK (capacidad_diaria > 0),  -- pedidos/día por repartidor
-  prioridad         int NOT NULL DEFAULT 0,          -- si se solapan, gana la mayor
-  geom              geometry(MultiPolygon, 4326) NOT NULL,
-  archivado_en      timestamptz,
+  area_id           text NOT NULL REFERENCES areas(id),
+  repartidor_id     uuid NOT NULL REFERENCES repartidores(usuario_id),
+  capacidad_diaria  int NOT NULL DEFAULT 12 CHECK (capacidad_diaria > 0),  -- pedidos al día que aguanta
+  contorno          geometry(MultiPolygon, 4326) NOT NULL,
+  archivado_en      timestamptz,                     -- se archiva en vez de borrar (los pedidos la siguen nombrando)
   creado            timestamptz NOT NULL DEFAULT now(),
   actualizado       timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX zonas_reparto_geom_idx ON zonas_reparto USING gist (geom);
-CREATE TRIGGER t_zonas_act BEFORE UPDATE ON zonas_reparto FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
-
--- Qué repartidores atienden cada zona (toda zona tiene al menos uno: lo valida el backend/panel)
-CREATE TABLE zona_repartidores (
-  zona_id         text NOT NULL REFERENCES zonas_reparto(id) ON DELETE CASCADE,
-  repartidor_id   uuid NOT NULL REFERENCES repartidores(usuario_id),
-  desde           timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (zona_id, repartidor_id)
-);
-CREATE INDEX zona_repartidores_rep_idx ON zona_repartidores (repartidor_id);
+CREATE INDEX zonas_contorno_idx ON zonas USING gist (contorno);
+CREATE INDEX zonas_repartidor_idx ON zonas (repartidor_id) WHERE archivado_en IS NULL;
+CREATE TRIGGER t_zonas_act BEFORE UPDATE ON zonas FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
 -- =====================================================================
 --  6. COMERCIOS
@@ -194,7 +182,7 @@ CREATE TABLE comercios (
   -- Punto de recogida: cada comercio tiene uno y el repartidor recoge aquí
   direccion         text NOT NULL,
   detalle           text,                            -- local, bodega, piso, a quién preguntar
-  municipio_id      text NOT NULL REFERENCES municipios(id),
+  area_id           text NOT NULL REFERENCES areas(id),
   punto             geography(Point, 4326),          -- coordenadas de la dirección (las pone el backend)
   place_id          text                             -- Place ID de Google Maps
 );   -- nombre comercial, celular, correo y fechas: en usuarios
@@ -216,11 +204,11 @@ CREATE TABLE pedidos (
   destinatario_telefono text NOT NULL CHECK (destinatario_telefono ~ '^[0-9]{7,10}$'),
   direccion             text NOT NULL,
   notas                 text,
-  -- Ubicación: el municipio lo elige el comercio; coordenadas, place_id y zona los pone el backend
-  municipio_id          text NOT NULL REFERENCES municipios(id),
+  -- Ubicación: el área la elige el comercio; coordenadas, place_id y zona los pone el backend
+  area_id               text NOT NULL REFERENCES areas(id),
   punto                 geography(Point, 4326),        -- dirección geocodificada
   place_id              text,                          -- Place ID de Google Maps
-  zona_id               text REFERENCES zonas_reparto(id),
+  zona_id               text REFERENCES zonas(id),
   fuera_de_zona         boolean NOT NULL DEFAULT false, -- quedó en un hueco: revisar
   -- Dinero
   cobro                 bigint NOT NULL DEFAULT 0 CHECK (cobro >= 0),   -- contraentrega; 0 = ya pagado
@@ -368,7 +356,7 @@ CREATE TABLE postulaciones_repartidor (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre        text NOT NULL,
   celular       text NOT NULL,
-  municipio_id  text REFERENCES municipios(id),
+  area_id       text REFERENCES areas(id),
   mensaje       text,
   estado        estado_solicitud NOT NULL DEFAULT 'nueva',
   repartidor_id uuid REFERENCES repartidores(usuario_id),
@@ -461,44 +449,29 @@ CREATE INDEX auditoria_registro_idx ON auditoria (tabla, registro_id, ocurrido D
 --  11. FUNCIONES DE TERRITORIO Y AUTOASIGNACIÓN
 -- =====================================================================
 
--- Zona para un punto: la que lo contiene (mayor prioridad) o, si cae en un hueco, la más cercana
+-- Zona para un punto: la que lo contiene o, si cae en un hueco, la más cercana
 CREATE FUNCTION zona_para_punto(lat double precision, lon double precision)
 RETURNS TABLE (id text, nombre text, dentro boolean) LANGUAGE sql STABLE AS $$
   WITH p AS (SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS g)
-  (SELECT z.id, z.nombre, true FROM zonas_reparto z, p
-    WHERE z.archivado_en IS NULL AND ST_Covers(z.geom, p.g)
-    ORDER BY z.prioridad DESC LIMIT 1)
+  (SELECT z.id, z.nombre, true FROM zonas z, p
+    WHERE z.archivado_en IS NULL AND ST_Covers(z.contorno, p.g)
+    LIMIT 1)
   UNION ALL
-  (SELECT z.id, z.nombre, false FROM zonas_reparto z, p
+  (SELECT z.id, z.nombre, false FROM zonas z, p
     WHERE z.archivado_en IS NULL AND NOT EXISTS (
-      SELECT 1 FROM zonas_reparto z2 WHERE z2.archivado_en IS NULL AND ST_Covers(z2.geom, p.g))
-    ORDER BY z.geom <-> p.g LIMIT 1)
+      SELECT 1 FROM zonas z2 WHERE z2.archivado_en IS NULL AND ST_Covers(z2.contorno, p.g))
+    ORDER BY z.contorno <-> p.g LIMIT 1)
   LIMIT 1
 $$;
 
--- Repartidor sugerido: de los que atienden la zona y están activos, el de menos pedidos activos
-CREATE FUNCTION repartidor_sugerido(p_zona text) RETURNS uuid LANGUAGE sql STABLE AS $$
-  SELECT zr.repartidor_id
-  FROM zona_repartidores zr
-  JOIN usuarios u ON u.id = zr.repartidor_id AND u.estado = 'activo'
-  LEFT JOIN pedidos p ON p.repartidor_id = zr.repartidor_id AND p.estado IN ('por_recoger', 'recogido', 'en_camino')
-  WHERE zr.zona_id = p_zona
-  GROUP BY zr.repartidor_id
-  ORDER BY count(p.id), min(zr.desde)
-  LIMIT 1
-$$;
-
--- Al crear un pedido: tarifa vigente, zona y repartidor (si hay punto geocodificado)
+-- Al crear un pedido: tarifa del área, zona y el repartidor de esa zona (si hay punto geocodificado)
 CREATE FUNCTION pedido_al_crear() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE z record; lat double precision; lon double precision;
 BEGIN
   IF NEW.estado <> 'por_recoger' THEN RAISE EXCEPTION 'Un pedido nuevo empieza en por_recoger'; END IF;
   IF NEW.tarifa IS NULL THEN
-    SELECT t.valor INTO NEW.tarifa FROM tarifas t
-    WHERE t.municipio_id = NEW.municipio_id AND t.vigente_desde <= current_date
-      AND (t.vigente_hasta IS NULL OR t.vigente_hasta > current_date)
-    ORDER BY t.vigente_desde DESC LIMIT 1;
-    IF NEW.tarifa IS NULL THEN RAISE EXCEPTION 'No hay tarifa vigente para %', NEW.municipio_id; END IF;
+    SELECT a.tarifa INTO NEW.tarifa FROM areas a WHERE a.id = NEW.area_id AND a.activa;
+    IF NEW.tarifa IS NULL THEN RAISE EXCEPTION 'No hay cobertura en %', NEW.area_id; END IF;
   END IF;
   IF NEW.punto IS NOT NULL THEN
     lat := ST_Y(NEW.punto::geometry); lon := ST_X(NEW.punto::geometry);
@@ -507,7 +480,9 @@ BEGIN
       NEW.zona_id := z.id; NEW.fuera_de_zona := NOT coalesce(z.dentro, false);
     END IF;
     IF NEW.repartidor_id IS NULL AND NEW.zona_id IS NOT NULL THEN
-      NEW.repartidor_id := repartidor_sugerido(NEW.zona_id);
+      SELECT zo.repartidor_id INTO NEW.repartidor_id FROM zonas zo
+        JOIN usuarios u ON u.id = zo.repartidor_id AND u.estado = 'activo'
+      WHERE zo.id = NEW.zona_id;
     END IF;
   END IF;
   RETURN NEW;
@@ -572,7 +547,7 @@ SELECT r.usuario_id AS repartidor_id, u.nombre, u.estado,
        count(p.id) FILTER (WHERE p.estado = 'entregado')                         AS entregas,
        count(p.id) FILTER (WHERE p.estado = 'no_entregado')                      AS no_entregas,
        count(p.id) FILTER (WHERE p.estado IN ('por_recoger', 'recogido', 'en_camino')) AS activos,
-       (SELECT string_agg(zr.zona_id, ', ' ORDER BY zr.zona_id) FROM zona_repartidores zr WHERE zr.repartidor_id = r.usuario_id) AS zonas
+       (SELECT string_agg(z.nombre, ', ' ORDER BY z.nombre) FROM zonas z WHERE z.repartidor_id = r.usuario_id AND z.archivado_en IS NULL) AS zonas
 FROM repartidores r
 JOIN usuarios u ON u.id = r.usuario_id
 LEFT JOIN pedidos p ON p.repartidor_id = r.usuario_id
@@ -598,22 +573,20 @@ SELECT p.programado_para AS dia, p.zona_id,
 FROM pedidos p
 WHERE p.punto IS NOT NULL AND p.estado <> 'cancelado';
 
--- Cobertura de zonas: "faltan N repartidores"
+-- Carga de cada zona: pedidos al día (promedio de 30 días) frente a su capacidad
 CREATE VIEW v_cobertura_zonas AS
-SELECT z.id AS zona_id, z.nombre, z.capacidad_diaria,
-       count(DISTINCT zr.repartidor_id) AS repartidores,
+SELECT z.id AS zona_id, z.nombre, z.area_id, z.repartidor_id, u.nombre AS repartidor, z.capacidad_diaria,
        round(coalesce(d.promedio, 0), 1) AS pedidos_dia_promedio,
-       greatest(0, ceil(coalesce(d.promedio, 0) / z.capacidad_diaria) - count(DISTINCT zr.repartidor_id))::int AS faltan
-FROM zonas_reparto z
-LEFT JOIN zona_repartidores zr ON zr.zona_id = z.id
+       round(100 * coalesce(d.promedio, 0) / z.capacidad_diaria) AS carga_pct   -- más de 100 = se queda corta
+FROM zonas z
+JOIN usuarios u ON u.id = z.repartidor_id
 LEFT JOIN LATERAL (
   SELECT avg(n) AS promedio FROM (
     SELECT count(*) AS n FROM pedidos p
     WHERE p.zona_id = z.id AND p.programado_para > current_date - 30
     GROUP BY p.programado_para) s
 ) d ON true
-WHERE z.archivado_en IS NULL
-GROUP BY z.id, z.nombre, z.capacidad_diaria, d.promedio;
+WHERE z.archivado_en IS NULL;
 
 -- =====================================================================
 --  13. MÉTRICAS POR DÍA (comercios y repartidores)
