@@ -39,7 +39,7 @@ INSERT INTO usuarios (rol, usuario, clave_hash, nombre, celular) VALUES
 INSERT INTO comercios (id, tipo, direccion, detalle, municipio_id)
 SELECT id, 'ecommerce', 'Calle 80 #15-20', 'Bodega', 'bogota' FROM usuarios WHERE usuario = 'demo';
 
-INSERT INTO repartidores (usuario_id, documento, prefijo, estado)
-SELECT id, '1012345678', 'CRE', 'activo' FROM usuarios WHERE usuario = 'repartidor';
+INSERT INTO repartidores (usuario_id, documento, prefijo)
+SELECT id, '1012345678', 'CRE' FROM usuarios WHERE usuario = 'repartidor';
 
 COMMIT;

@@ -787,7 +787,7 @@ window.ENTRADAS = (() => {
           llamadas: [
             {
               id: 'registro-repartidor', nombre: 'Crear cuenta de repartidor', metodo: 'POST', ruta: '/api/registro/:token', auth: 'Pública',
-              cuando: 'Al tocar "Crear mi cuenta". La cuenta queda "en proceso" hasta que el administrador la active y le asigne zona. Antes, el enlace se revisa con la misma llamada GET.',
+              cuando: 'Al tocar "Crear mi cuenta". La cuenta queda activa de una vez (el admin ya habló con el repartidor antes de enviarle el enlace); recibe pedidos cuando el admin le asigne zona. Antes, el enlace se revisa con la misma llamada GET.',
               envia: [
                 ['rol', 'texto', true, 'repartidor', ''],
                 ['nombre', 'texto', true, 'Camilo Restrepo', ''],
@@ -799,7 +799,7 @@ window.ENTRADAS = (() => {
                 ['acepta_datos', 'booleano', true, true, ''],
               ],
               recibe: [['usuario', 'texto', true, 'camilo.r', ''], ['rol', 'texto', true, 'repartidor', ''], ['mensaje', 'texto', true, 'Tu cuenta quedó creada', '']],
-              tablas: 'enlaces_registro, registros_por_enlace, usuarios, repartidores (estado en_proceso; sin datos de vehículo)',
+              tablas: 'enlaces_registro, registros_por_enlace, usuarios, repartidores (sin datos de vehículo)',
               errores: [['409', 'Usuario o documento ya registrado'], ['410', 'El enlace ya se usó o venció'], ['422', 'Campo inválido']],
             },
           ],

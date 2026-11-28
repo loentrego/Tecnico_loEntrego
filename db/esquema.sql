@@ -40,8 +40,11 @@ CREATE TYPE estado_pedido AS ENUM ('por_recoger', 'recogido', 'en_camino', 'entr
 CREATE TYPE motivo_no_entrega AS ENUM ('no_contesta', 'direccion', 'rechazado', 'ausente', 'otro');
 
 CREATE TYPE tipo_comercio AS ENUM ('comercio', 'ecommerce', 'sector_publico');
-CREATE TYPE estado_comercio AS ENUM ('activo', 'pausado', 'retirado');
-CREATE TYPE estado_repartidor AS ENUM ('en_proceso', 'activo', 'suspendido', 'retirado');
+-- Estado de cualquier cuenta (comercio, repartidor o admin):
+--   activo   → usa todo
+--   pausado  → puede entrar, pero no crea ni recibe pedidos
+--   retirado → no puede entrar (la cuenta no se borra: el historial se conserva)
+CREATE TYPE estado_usuario AS ENUM ('activo', 'pausado', 'retirado');
 
 
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
@@ -83,7 +86,7 @@ CREATE TABLE usuarios (
   nombre          text NOT NULL,                     -- nombre del comercio, del repartidor o del admin
   celular         text CHECK (celular ~ '^3[0-9]{9}$'),   -- celular colombiano, solo dígitos
   correo          citext UNIQUE,
-  activo          boolean NOT NULL DEFAULT true,
+  estado          estado_usuario NOT NULL DEFAULT 'activo',   -- el único estado: comercios y repartidores no tienen otro
   ultimo_ingreso  timestamptz,
   creado          timestamptz NOT NULL DEFAULT now(),
   actualizado     timestamptz NOT NULL DEFAULT now()
@@ -164,7 +167,6 @@ CREATE TABLE repartidores (
   documento         text NOT NULL UNIQUE CHECK (documento ~ '^[0-9]{6,10}$'),   -- cédula de ciudadanía (la única que se acepta); no se valida contra ningún sistema
   prefijo           char(3) UNIQUE CHECK (prefijo ~ '^[A-Z]{3}$' AND prefijo <> 'LOE'),   -- código de sus guías: CRE-0000001 (lo asigna el backend al activarlo)
   contador_pedidos  int NOT NULL DEFAULT 0 CHECK (contador_pedidos BETWEEN 0 AND 9999999),  -- último número usado en sus guías
-  estado            estado_repartidor NOT NULL DEFAULT 'en_proceso',
   contacto_emergencia_nombre   text,
   contacto_emergencia_celular  text
 );   -- nombre, celular, correo y fechas: en usuarios
@@ -212,7 +214,6 @@ CREATE INDEX zona_repartidores_rep_idx ON zona_repartidores (repartidor_id);
 CREATE TABLE comercios (
   id                uuid PRIMARY KEY REFERENCES usuarios(id),   -- el mismo id de su cuenta de acceso (une las dos tablas); no se guarda dueño ni responsable
   tipo              tipo_comercio NOT NULL DEFAULT 'comercio',
-  estado            estado_comercio NOT NULL DEFAULT 'activo',
   -- Punto de recogida: cada comercio tiene uno y el repartidor recoge aquí
   direccion         text NOT NULL,
   detalle           text,                            -- local, bodega, piso, a quién preguntar
@@ -574,7 +575,7 @@ $$;
 CREATE FUNCTION repartidor_sugerido(p_zona text) RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT zr.repartidor_id
   FROM zona_repartidores zr
-  JOIN repartidores r ON r.usuario_id = zr.repartidor_id AND r.estado = 'activo'
+  JOIN usuarios u ON u.id = zr.repartidor_id AND u.estado = 'activo'
   LEFT JOIN pedidos p ON p.repartidor_id = zr.repartidor_id AND p.estado IN ('por_recoger', 'recogido', 'en_camino')
   WHERE zr.zona_id = p_zona
   GROUP BY zr.repartidor_id
@@ -663,7 +664,7 @@ GROUP BY programado_para;
 
 -- Por repartidor
 CREATE VIEW v_repartidores AS
-SELECT r.usuario_id AS repartidor_id, u.nombre, r.estado,
+SELECT r.usuario_id AS repartidor_id, u.nombre, u.estado,
        count(p.id) FILTER (WHERE p.estado = 'entregado')                         AS entregas,
        count(p.id) FILTER (WHERE p.estado = 'no_entregado')                      AS no_entregas,
        count(p.id) FILTER (WHERE p.estado IN ('por_recoger', 'recogido', 'en_camino')) AS activos,
@@ -672,11 +673,11 @@ SELECT r.usuario_id AS repartidor_id, u.nombre, r.estado,
 FROM repartidores r
 JOIN usuarios u ON u.id = r.usuario_id
 LEFT JOIN pedidos p ON p.repartidor_id = r.usuario_id
-GROUP BY r.usuario_id, u.nombre, r.estado;
+GROUP BY r.usuario_id, u.nombre, u.estado;
 
 -- Por comercio
 CREATE VIEW v_comercios AS
-SELECT c.id AS comercio_id, u.nombre, c.tipo, c.estado,
+SELECT c.id AS comercio_id, u.nombre, c.tipo, u.estado,
        count(p.id)                                       AS pedidos,
        count(p.id) FILTER (WHERE p.estado = 'entregado') AS entregados,
        max(p.creado)                                     AS ultimo_pedido,
@@ -684,7 +685,7 @@ SELECT c.id AS comercio_id, u.nombre, c.tipo, c.estado,
 FROM comercios c
 JOIN usuarios u ON u.id = c.id
 LEFT JOIN pedidos p ON p.comercio_id = c.id
-GROUP BY c.id, u.nombre;
+GROUP BY c.id, u.nombre, u.estado;
 
 -- Demanda en el mapa (capa "Calor"): solo coordenadas; el mapa las agrupa
 CREATE VIEW v_demanda_puntos AS

@@ -30,7 +30,7 @@
     usuarios: 'Las cuentas de acceso: admin, comercio o repartidor. El comercio es solo su cuenta, sin dueño ni responsable. Aquí están el usuario, la clave (hash), el nombre, el celular, el correo y las fechas; comercios y repartidores no los repiten.',
     sesiones: 'Una por dispositivo. Guarda el hash del token de refresco y cuándo vence o se revocó.',
     intentos_ingreso: 'Cada intento de inicio de sesión, exitoso o no. Sirve para bloquear fuerza bruta.',
-    suscripciones_push: 'Suscripciones Web Push de la AppWeb para mandar notificaciones.',
+    suscripciones_push: 'Permiso de notificaciones de cada celular o navegador: la dirección a donde el servidor manda los avisos (endpoint) y sus llaves de cifrado (p256dh, auth).',
     municipios: 'Bogotá, Funza y Soacha, con su límite y si hay cobertura.',
     tarifas: 'Tarifa de envío por municipio con vigencia. El pedido copia la vigente al crearse.',
     zonas_reparto: 'Las zonas que se dibujan en el panel. Deciden a qué repartidor va cada pedido.',
