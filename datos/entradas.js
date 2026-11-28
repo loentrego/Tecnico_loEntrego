@@ -205,7 +205,7 @@ window.ENTRADAS = (() => {
             ['botón', 'Alejar / Acercar mapa de ubicación', '—', 'Zoom', 'local'],
           ],
           llamadas: [],
-          nota: 'Contacto no tiene formulario: todo va por correo y redes. La tabla mensajes_contacto queda lista por si se agrega uno.',
+          nota: 'Contacto no tiene formulario: todo va por correo y redes. El único formulario de la web es Únete.',
         },
       ],
     },

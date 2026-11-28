@@ -15,7 +15,7 @@
     { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['areas', 'zonas'], txt: 'Áreas de cobertura con su tarifa, y las zonas de reparto de cada repartidor. No se guardan coordenadas: el pedido guarda su zona.' },
     { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'evidencias'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
-    { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'mensajes_contacto'], txt: 'Lo que llega de los formularios de la web. Los repartidores no se postulan: se habla con ellos y se les envía el enlace.' },
+    { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio'], txt: 'Lo que llega del formulario Únete de la web (el único formulario de la web). Los repartidores no se postulan: se habla con ellos y se les envía el enlace.' },
     { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['enlaces_registro', 'registros_por_enlace', 'asignaciones', 'auditoria', 'archivos', 'estado_canales', 'mantenimientos', 'ajustes'], txt: 'Registros del sistema: enlaces creados y quién se registró con ellos, intercambios de repartidor (asignaciones), auditoría, archivos, mantenimiento y ajustes.' },
   ];
   const areaDe = {};
@@ -39,7 +39,6 @@
     liquidacion_pedidos: 'Qué pedidos entran en cada liquidación. Un pedido se liquida una sola vez.',
     pagos_repartidor: 'Pago al repartidor por periodo: entregas por valor más ajustes.',
     solicitudes_comercio: 'Formulario "Únete" de la web. Se sigue hasta que se convierte en comercio.',
-    mensajes_contacto: 'Formulario de contacto de la web.',
     enlaces_registro: 'Enlaces que genera el panel para invitar comercios o repartidores, con usos y vencimiento.',
     registros_por_enlace: 'Quién se registró con cada enlace.',
     archivos: 'Ficha de cada archivo guardado en el almacenamiento de objetos.',

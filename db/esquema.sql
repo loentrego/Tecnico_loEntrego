@@ -349,20 +349,6 @@ CREATE TABLE solicitudes_comercio (
 CREATE INDEX solicitudes_comercio_estado_idx ON solicitudes_comercio (estado, creado DESC);
 CREATE TRIGGER t_solicitudes_act BEFORE UPDATE ON solicitudes_comercio FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
--- Formulario de contacto de la web
-CREATE TABLE mensajes_contacto (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre      text NOT NULL,
-  celular     text,
-  correo      citext,
-  mensaje     text NOT NULL,
-  leido_por   uuid REFERENCES usuarios(id),
-  leido_en    timestamptz,
-  ip          inet,
-  creado      timestamptz NOT NULL DEFAULT now(),
-  CHECK (celular IS NOT NULL OR correo IS NOT NULL)
-);
-
 -- Enlaces de registro que genera el panel (invitar comercios o repartidores)
 CREATE TABLE enlaces_registro (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
