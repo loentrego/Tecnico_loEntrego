@@ -18,7 +18,6 @@
     { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'asignaciones', 'evidencias'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
     { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'postulaciones_repartidor', 'mensajes_contacto', 'enlaces_registro', 'registros_por_enlace'], txt: 'Formularios de la web y enlaces de registro del panel.' },
-    { id: 'redes', nombre: 'Redes y reputación', color: '#D63A4C', tablas: ['metricas_redes', 'resenas'], txt: 'Google Business, Instagram y Facebook para el Resumen.' },
     { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['archivos', 'estado_canales', 'mantenimientos', 'ajustes', 'auditoria'], txt: 'Archivos, página de mantenimiento, ajustes y auditoría.' },
   ];
   const areaDe = {};
@@ -51,8 +50,6 @@
     mensajes_contacto: 'Formulario de contacto de la web.',
     enlaces_registro: 'Enlaces que genera el panel para invitar comercios o repartidores, con usos y vencimiento.',
     registros_por_enlace: 'Quién se registró con cada enlace.',
-    metricas_redes: 'Una foto diaria de cada red: seguidores, alcance, interacciones y calificación.',
-    resenas: 'Reseñas públicas de Google y Facebook, con su respuesta.',
     archivos: 'Ficha de cada archivo guardado en el almacenamiento de objetos.',
     estado_canales: 'Lo que muestra la página de mantenimiento para cada canal.',
     mantenimientos: 'Ventanas de mantenimiento con su hora estimada de regreso.',

@@ -50,7 +50,6 @@ CREATE TYPE estado_usuario AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
 CREATE TYPE estado_liquidacion AS ENUM ('borrador', 'aprobada', 'pagada', 'anulada');
 CREATE TYPE estado_cierre AS ENUM ('abierto', 'cuadrado', 'con_diferencia');
-CREATE TYPE red_social AS ENUM ('google', 'instagram', 'facebook');
 CREATE TYPE estado_canal AS ENUM ('ok', 'warn', 'fail');   -- igual que la página de mantenimiento
 
 -- =====================================================================
@@ -424,39 +423,7 @@ CREATE TABLE registros_por_enlace (
 );
 
 -- =====================================================================
---  10. REDES Y REPUTACIÓN (Resumen del panel: Google Business, Instagram, Facebook)
--- =====================================================================
-
--- Foto diaria de cada red (la llena un trabajo programado con las APIs)
-CREATE TABLE metricas_redes (
-  red             red_social NOT NULL,
-  fecha           date NOT NULL,
-  seguidores      int,
-  alcance         int,
-  interacciones   int,
-  visitas_perfil  int,
-  calificacion    numeric(2,1) CHECK (calificacion BETWEEN 1 AND 5),   -- Google
-  total_resenas   int,
-  datos           jsonb NOT NULL DEFAULT '{}',        -- lo demás que entregue la API
-  PRIMARY KEY (red, fecha)
-);
-
--- Reseñas públicas (Google Business, Facebook)
-CREATE TABLE resenas (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  red           red_social NOT NULL,
-  id_externo    text NOT NULL,
-  autor         text,
-  estrellas     smallint CHECK (estrellas BETWEEN 1 AND 5),
-  texto         text,
-  publicada     timestamptz NOT NULL,
-  respuesta     text,
-  respondida_en timestamptz,
-  UNIQUE (red, id_externo)
-);
-
--- =====================================================================
---  11. SISTEMA: estado de canales (página de mantenimiento), ajustes y auditoría
+--  10. SISTEMA: estado de canales (página de mantenimiento), ajustes y auditoría
 -- =====================================================================
 
 -- Lo que muestra la página de mantenimiento (ESTADO en frontend-maintenance/Script.js)
@@ -501,7 +468,7 @@ CREATE TABLE auditoria (
 CREATE INDEX auditoria_registro_idx ON auditoria (tabla, registro_id, ocurrido DESC);
 
 -- =====================================================================
---  12. FUNCIONES DE TERRITORIO Y AUTOASIGNACIÓN
+--  11. FUNCIONES DE TERRITORIO Y AUTOASIGNACIÓN
 -- =====================================================================
 
 -- Zona para un punto: la que lo contiene (mayor prioridad) o, si cae en un hueco, la más cercana
@@ -594,7 +561,7 @@ END $$;
 CREATE TRIGGER t_pedidos_estado BEFORE UPDATE OF estado ON pedidos FOR EACH ROW EXECUTE FUNCTION pedido_validar_estado();
 
 -- =====================================================================
---  13. VISTAS PARA EL PANEL (Resumen, Comercios, Repartidores, Mapa)
+--  12. VISTAS PARA EL PANEL (Resumen, Comercios, Repartidores, Mapa)
 -- =====================================================================
 
 -- Resumen por día
@@ -660,7 +627,7 @@ WHERE z.archivado_en IS NULL
 GROUP BY z.id, z.nombre, z.capacidad_diaria, d.promedio;
 
 -- =====================================================================
---  14. MÉTRICAS POR DÍA (comercios y repartidores)
+--  13. MÉTRICAS POR DÍA (comercios y repartidores)
 --  Una fila por comercio o repartidor y día. Los periodos (hoy, semana,
 --  mes, 6 meses, año, histórico) se sacan sumando filas. El backend llama
 --  refrescar_metricas() cada pocos minutos para hoy y al cierre del día.
