@@ -856,7 +856,6 @@ window.ENTRADAS = (() => {
   const EXTRA = [
     ['GET', '/api/salud', 'Monitoreo', 'Responde si la API y la base están arriba.', '—'],
     ['POST', '/api/refrescar', 'AppWeb · Panel', 'Cambia el token de refresco por uno nuevo cuando el de acceso vence.', 'sesiones'],
-    ['POST', '/api/push', 'AppWeb', 'Guarda la suscripción de notificaciones del dispositivo.', 'suscripciones_push'],
     ['POST', '/api/publico/calificar/:token', 'Cliente final', 'Califica la entrega desde el enlace que recibe.', 'calificaciones'],
     ['POST', '/api/admin/cierres', 'Admin', 'Registra lo que entregó el repartidor al cerrar caja.', 'cierres_caja'],
     ['POST', '/api/admin/liquidaciones', 'Admin', 'Arma, aprueba y marca como pagada una liquidación.', 'liquidaciones, liquidacion_pedidos'],

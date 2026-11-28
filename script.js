@@ -11,7 +11,7 @@
 
   // ---------- Áreas: cómo se agrupan las tablas ----------
   const AREAS = [
-    { id: 'acceso', nombre: 'Acceso', color: '#3422A8', tablas: ['usuarios', 'sesiones', 'intentos_ingreso', 'suscripciones_push'], txt: 'Quién entra, desde dónde y con qué rol.' },
+    { id: 'acceso', nombre: 'Acceso', color: '#3422A8', tablas: ['usuarios', 'sesiones', 'intentos_ingreso'], txt: 'Quién entra, desde dónde y con qué rol.' },
     { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['municipios', 'tarifas', 'zonas_reparto', 'zona_repartidores'], txt: 'Municipios, zonas de reparto y tarifas. Las direcciones se guardan solo como coordenadas y Place ID.' },
     { id: 'comercios', nombre: 'Comercios', color: '#5A48D6', tablas: ['comercios', 'metricas_comercio_dia'], txt: 'Los clientes de LoEntrego, su punto de recogida y sus métricas.' },
     { id: 'repartidores', nombre: 'Repartidores', color: '#4F8DFF', tablas: ['repartidores', 'jornadas', 'metricas_repartidor_dia'], txt: 'Quién reparte, sus jornadas y métricas.' },
@@ -19,7 +19,7 @@
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
     { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'postulaciones_repartidor', 'mensajes_contacto', 'enlaces_registro', 'registros_por_enlace'], txt: 'Formularios de la web y enlaces de registro del panel.' },
     { id: 'redes', nombre: 'Redes y reputación', color: '#D63A4C', tablas: ['metricas_redes', 'resenas'], txt: 'Google Business, Instagram y Facebook para el Resumen.' },
-    { id: 'notificaciones', nombre: 'Notificaciones', color: '#12092E', tablas: ['plantillas', 'notificaciones'], txt: 'Push y correo, con su estado de envío.' },
+    { id: 'notificaciones', nombre: 'Notificaciones', color: '#12092E', tablas: ['plantillas', 'notificaciones'], txt: 'Correos, con su estado de envío. Por ahora no hay notificaciones push.' },
     { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['archivos', 'estado_canales', 'mantenimientos', 'ajustes', 'auditoria'], txt: 'Archivos, página de mantenimiento, ajustes y auditoría.' },
   ];
   const areaDe = {};
@@ -30,7 +30,6 @@
     usuarios: 'Las cuentas de acceso: admin, comercio o repartidor. El comercio es solo su cuenta, sin dueño ni responsable. Aquí están el usuario, la clave (hash), el nombre, el celular, el correo y las fechas; comercios y repartidores no los repiten.',
     sesiones: 'Una por dispositivo. Guarda el hash del token de refresco y cuándo vence o se revocó.',
     intentos_ingreso: 'Cada intento de inicio de sesión, exitoso o no. Sirve para bloquear fuerza bruta.',
-    suscripciones_push: 'Permiso de notificaciones de cada celular o navegador: la dirección a donde el servidor manda los avisos (endpoint) y sus llaves de cifrado (p256dh, auth).',
     municipios: 'Bogotá, Funza y Soacha, con su límite y si hay cobertura.',
     tarifas: 'Tarifa de envío por municipio con vigencia. El pedido copia la vigente al crearse.',
     zonas_reparto: 'Las zonas que se dibujan en el panel. Deciden a qué repartidor va cada pedido.',
@@ -56,7 +55,7 @@
     registros_por_enlace: 'Quién se registró con cada enlace.',
     metricas_redes: 'Una foto diaria de cada red: seguidores, alcance, interacciones y calificación.',
     resenas: 'Reseñas públicas de Google y Facebook, con su respuesta.',
-    plantillas: 'Textos de los mensajes (push y correo) con variables.',
+    plantillas: 'Textos de los correos con variables.',
     notificaciones: 'Cada mensaje enviado o por enviar, con su estado y el id del proveedor.',
     archivos: 'Ficha de cada archivo guardado en el almacenamiento de objetos.',
     estado_canales: 'Lo que muestra la página de mantenimiento para cada canal.',

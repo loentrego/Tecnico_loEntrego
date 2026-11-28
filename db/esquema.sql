@@ -50,7 +50,7 @@ CREATE TYPE estado_usuario AS ENUM ('activo', 'pausado', 'retirado');
 CREATE TYPE estado_solicitud AS ENUM ('nueva', 'contactada', 'convertida', 'descartada');
 CREATE TYPE estado_liquidacion AS ENUM ('borrador', 'aprobada', 'pagada', 'anulada');
 CREATE TYPE estado_cierre AS ENUM ('abierto', 'cuadrado', 'con_diferencia');
-CREATE TYPE canal_notificacion AS ENUM ('push', 'correo');
+CREATE TYPE canal_notificacion AS ENUM ('correo');   -- por ahora solo correo (no hay notificaciones push)
 CREATE TYPE estado_envio AS ENUM ('pendiente', 'enviado', 'fallido');
 CREATE TYPE red_social AS ENUM ('google', 'instagram', 'facebook');
 CREATE TYPE estado_canal AS ENUM ('ok', 'warn', 'fail');   -- igual que la página de mantenimiento
@@ -125,16 +125,6 @@ CREATE TABLE intentos_ingreso (
   ocurrido    timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX intentos_ingreso_idx ON intentos_ingreso (usuario, ocurrido DESC);
-
--- Suscripciones Web Push de la AppWeb (PWA)
-CREATE TABLE suscripciones_push (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  usuario_id  uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  endpoint    text NOT NULL UNIQUE,
-  p256dh      text NOT NULL,
-  auth        text NOT NULL,
-  creado      timestamptz NOT NULL DEFAULT now()
-);
 
 -- =====================================================================
 --  3. TERRITORIO (PostGIS)
@@ -481,7 +471,7 @@ CREATE TABLE resenas (
 );
 
 -- =====================================================================
---  11. NOTIFICACIONES (push y correo)
+--  11. NOTIFICACIONES (por ahora solo correo)
 -- =====================================================================
 CREATE TABLE plantillas (
   id          text PRIMARY KEY,                     -- 'pedido_en_camino', 'pedido_entregado', …

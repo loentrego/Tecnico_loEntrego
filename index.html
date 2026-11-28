@@ -165,7 +165,7 @@ rm /srv/loentrego/mantenimiento/app.on
             <tr><td><b>PostgreSQL</b></td><td>16</td><td>La base de datos de todo el ecosistema.</td><td><code>postgresql postgresql-contrib</code></td></tr>
             <tr><td><b>PostGIS</b></td><td>3.4</td><td>Zonas de reparto y coordenadas de entrega. Asigna el pedido a la zona correcta.</td><td><code>postgresql-16-postgis-3</code></td></tr>
             <tr><td><b>GDAL (ogr2ogr)</b></td><td>3.8</td><td>Importa zonas desde GeoJSON o shapefile.</td><td><code>gdal-bin</code></td></tr>
-            <tr><td><b>Redis</b></td><td>7</td><td>Cola de notificaciones (push y correo) y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
+            <tr><td><b>Redis</b></td><td>7</td><td>Cola de correos y conteo de intentos. Solo en <code>localhost</code>.</td><td><code>redis-server</code></td></tr>
             <tr><th colspan="4" class="grupo">Aplicación</th></tr>
             <tr><td><b>Node.js</b></td><td>22 LTS</td><td>Corre la API.</td><td><code>nodejs</code> (NodeSource)</td></tr>
             <tr><td><b>systemd</b></td><td>—</td><td>Arranca la API con el servidor y la reinicia si se cae (<code>loentrego-api.service</code>).</td><td>incluido</td></tr>
@@ -222,7 +222,6 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
         <article class="svc"><span class="svc-tag">Redes</span><h4>Meta Graph API</h4><p>Seguidores, alcance e interacciones de Instagram y Facebook, una foto por día.</p><small><code>META_TOKEN</code></small></article>
         <article class="svc"><span class="svc-tag">Monitoreo</span><h4>UptimeRobot o Uptime Kuma</h4><p>Revisa <code>/api/salud</code> cada minuto y avisa si la API se cae.</p><small>—</small></article>
         <article class="svc"><span class="svc-tag">Errores</span><h4>Sentry</h4><p>Errores de la API y de los frontends con contexto, antes de que alguien los reporte.</p><small><code>SENTRY_DSN</code></small></article>
-        <article class="svc"><span class="svc-tag">Push</span><h4>Web Push (VAPID)</h4><p>Notificaciones de la AppWeb a comercios y repartidores. No requiere proveedor: lo firma la API.</p><small><code>VAPID_PUBLIC</code> · <code>VAPID_PRIVATE</code></small></article>
         <article class="svc"><span class="svc-tag">Correo del equipo</span><h4>Google Workspace o Zoho Mail</h4><p>Buzones de <code>contacto@loentrego.com</code> y del equipo.</p><small>—</small></article>
       </div>
 
@@ -418,8 +417,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=14"></script>
-<script src="datos/entradas.js?v=17"></script>
-<script src="script.js?v=15"></script>
+<script src="datos/esquema.js?v=15"></script>
+<script src="datos/entradas.js?v=18"></script>
+<script src="script.js?v=16"></script>
 </body>
 </html>
