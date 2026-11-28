@@ -165,7 +165,6 @@ CREATE TABLE repartidores (
   prefijo           char(3) UNIQUE CHECK (prefijo ~ '^[A-Z]{3}$' AND prefijo <> 'LOE'),   -- código de sus guías: CRE-0000001 (lo asigna el backend al activarlo)
   contador_pedidos  int NOT NULL DEFAULT 0 CHECK (contador_pedidos BETWEEN 0 AND 9999999),  -- último número usado en sus guías
   estado            estado_repartidor NOT NULL DEFAULT 'en_proceso',
-  fecha_ingreso     date,
   contacto_emergencia_nombre   text,
   contacto_emergencia_celular  text
 );   -- nombre, celular, correo y fechas: en usuarios
