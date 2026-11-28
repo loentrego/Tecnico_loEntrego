@@ -282,9 +282,9 @@ window.ENTRADAS = (() => {
           llamadas: [
             {
               id: 'crear-pedido', nombre: 'Crear pedido', metodo: 'POST', ruta: '/api/pedidos', auth,
-              cuando: 'Al tocar "Crear pedido". La API geocodifica la dirección y guarda las coordenadas; la base pone tarifa, zona, repartidor y el número de guía. El formulario no muestra número: aparece cuando el pedido queda registrado.',
+              cuando: 'Al tocar "Crear pedido". La API ubica la dirección (sin guardar coordenadas) y busca su zona; la base pone tarifa, repartidor y el número de guía. Se entrega al día siguiente. El formulario no muestra número: aparece cuando el pedido queda registrado.',
               envia: [
-                ['zona', 'texto', true, 'bogota', 'bogota · funza · soacha → pedidos.area_id'],
+                ['zona', 'texto', true, 'bogota', 'bogota · funza · soacha: ayuda a ubicar la dirección (no se guarda; el área sale de la zona)'],
                 ['direccion', 'texto', true, 'Calle 72 #10-34', ''],
                 ['nombre', 'texto', true, 'Andrea Gómez', ''],
                 ['telefono', 'texto', true, '3001234567', 'Solo dígitos'],
@@ -611,12 +611,11 @@ window.ENTRADAS = (() => {
               id: 'demanda', nombre: 'Demanda en el mapa (Calor)', metodo: 'GET', ruta: '/api/admin/mapa/demanda?periodo=', auth,
               cuando: 'Al activar Calor o cambiar de periodo.', envia: null,
               recibe: [
-                ['puntos[]', 'lista', true, null, 'Un punto por pedido; el mapa los agrupa'],
-                ['puntos[].lat', 'decimal', true, 4.6486, ''],
-                ['puntos[].lon', 'decimal', true, -74.0628, ''],
-                ['puntos[].zona_id', 'texto', false, 'chapinero-norte', ''],
+                ['zonas[]', 'lista', true, null, 'Una fila por zona'],
+                ['zonas[].zona_id', 'texto', true, 'chapinero-norte', ''],
+                ['zonas[].pedidos', 'entero', true, 312, 'En el periodo'],
               ],
-              tablas: 'v_demanda_puntos', errores: [],
+              tablas: 'v_demanda_zonas', errores: [],
             },
             {
               id: 'guardar-zona', nombre: 'Crear o editar zona', metodo: 'PUT', ruta: '/api/admin/zonas/:id', auth,

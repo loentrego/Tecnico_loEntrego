@@ -22,7 +22,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid(), hash de claves
 CREATE EXTENSION IF NOT EXISTS citext;     -- usuario y correo sin distinguir mayúsculas
-CREATE EXTENSION IF NOT EXISTS postgis;    -- zonas de reparto y puntos (coordenadas)
+CREATE EXTENSION IF NOT EXISTS postgis;    -- contornos de áreas y zonas
 
 SET TIME ZONE 'America/Bogota';
 
@@ -55,6 +55,9 @@ CREATE TYPE estado_canal AS ENUM ('ok', 'warn', 'fail');   -- igual que la pági
 -- =====================================================================
 --  Utilidad: "actualizado" se pone solo en cada UPDATE
 -- =====================================================================
+-- Día en Bogotá de una fecha y hora (no depende de la zona horaria del servidor)
+CREATE FUNCTION dia_de(t timestamptz) RETURNS date LANGUAGE sql IMMUTABLE AS $$ SELECT (t AT TIME ZONE 'America/Bogota')::date $$;
+
 CREATE FUNCTION tocar_actualizado() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN NEW.actualizado := now(); RETURN NEW; END $$;
 
@@ -182,11 +185,9 @@ CREATE TABLE comercios (
   -- Punto de recogida: cada comercio tiene uno y el repartidor recoge aquí
   direccion         text NOT NULL,
   detalle           text,                            -- local, bodega, piso, a quién preguntar
-  area_id           text NOT NULL REFERENCES areas(id),
-  punto             geography(Point, 4326)           -- coordenadas de la dirección (las pone el backend)
+  area_id           text NOT NULL REFERENCES areas(id)
 );   -- nombre comercial, celular, correo y fechas: en usuarios
 CREATE TRIGGER t_comercios_act AFTER UPDATE ON comercios FOR EACH ROW EXECUTE FUNCTION tocar_usuario('id');
-CREATE INDEX comercios_punto_idx ON comercios USING gist (punto);
 
 -- =====================================================================
 --  7. PEDIDOS (el corazón)
@@ -196,18 +197,16 @@ CREATE SEQUENCE pedidos_codigo_seq START 1001;
 CREATE TABLE pedidos (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo                text NOT NULL UNIQUE CHECK (codigo ~ '^[A-Z]{3}-[0-9]{7}$'),   -- número de guía: lo arma la base al registrar el pedido (CRE-0000042)
-  comercio_id           uuid NOT NULL REFERENCES comercios(id),
-  creado_por            uuid REFERENCES usuarios(id),
+  comercio_id           uuid NOT NULL REFERENCES comercios(id),   -- quien lo creó (el comercio es su propia cuenta)
   -- Destinatario (formulario "Nuevo pedido" de la AppWeb)
   destinatario_nombre   text NOT NULL,
   destinatario_telefono text NOT NULL CHECK (destinatario_telefono ~ '^[0-9]{7,10}$'),
   direccion             text NOT NULL,
   notas                 text,
-  -- Ubicación: el área la elige el comercio; las coordenadas las pone el backend y la zona, la base
-  area_id               text NOT NULL REFERENCES areas(id),
-  punto                 geography(Point, 4326),        -- dirección geocodificada
-  zona_id               text REFERENCES zonas(id),
-  fuera_de_zona         boolean NOT NULL DEFAULT false, -- quedó en un hueco: revisar
+  -- Zona: el backend ubica la dirección (sin guardar coordenadas) y busca su zona con zona_para_punto().
+  -- De la zona salen el área (y su tarifa) y el repartidor.
+  zona_id               text NOT NULL REFERENCES zonas(id),
+  fuera_de_zona         boolean NOT NULL DEFAULT false, -- la dirección cayó en un hueco: se usó la zona más cercana
   -- Dinero
   cobro                 bigint NOT NULL DEFAULT 0 CHECK (cobro >= 0),   -- contraentrega; 0 = ya pagado
   tarifa                bigint NOT NULL CHECK (tarifa >= 0),            -- envío congelado al crear
@@ -218,18 +217,17 @@ CREATE TABLE pedidos (
   motivo_detalle        text,
   intentos              smallint NOT NULL DEFAULT 1 CHECK (intentos >= 1),
   pedido_origen_id      uuid REFERENCES pedidos(id),   -- reintento de un "no entregado"
-  programado_para       date NOT NULL DEFAULT current_date,
-  creado                timestamptz NOT NULL DEFAULT now(),
+  creado                timestamptz NOT NULL DEFAULT now(),   -- se entrega al día siguiente
   actualizado           timestamptz NOT NULL DEFAULT now(),
   cerrado_en            timestamptz,                   -- cuando llega a entregado/no_entregado/cancelado
   CHECK ((estado = 'no_entregado') = (motivo IS NOT NULL)),
   CHECK (estado = 'por_recoger' OR estado = 'cancelado' OR repartidor_id IS NOT NULL)
 );
 CREATE INDEX pedidos_comercio_idx   ON pedidos (comercio_id, creado DESC);
-CREATE INDEX pedidos_repartidor_idx ON pedidos (repartidor_id, programado_para) WHERE repartidor_id IS NOT NULL;
+CREATE INDEX pedidos_repartidor_idx ON pedidos (repartidor_id, dia_de(creado)) WHERE repartidor_id IS NOT NULL;
 CREATE INDEX pedidos_activos_idx    ON pedidos (estado) WHERE estado IN ('por_recoger', 'recogido', 'en_camino');
-CREATE INDEX pedidos_zona_dia_idx   ON pedidos (zona_id, programado_para);
-CREATE INDEX pedidos_punto_idx      ON pedidos USING gist (punto);
+CREATE INDEX pedidos_zona_dia_idx   ON pedidos (zona_id, dia_de(creado));
+CREATE INDEX pedidos_dia_idx        ON pedidos (dia_de(creado));
 CREATE TRIGGER t_pedidos_act BEFORE UPDATE ON pedidos FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
 -- Historial: cada cambio de estado con su hora (la "mini-ruta" de la AppWeb)
@@ -464,26 +462,23 @@ $$;
 
 -- Al registrar un pedido, en este orden: tarifa del área → zona por la dirección → repartidor de esa zona
 -- → número de guía (prefijo del repartidor + su contador, ej. CRE-0000042).
--- Si no tiene repartidor (sin coordenadas o el de la zona está pausado) la guía sale con LOE + secuencia general.
+-- La zona la manda el backend (la sacó de la dirección). Si el repartidor de la zona está pausado,
+-- el pedido queda sin repartidor y la guía sale con LOE + secuencia general.
 CREATE FUNCTION pedido_al_crear() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE z record; lat double precision; lon double precision; pre text; num int;
+DECLARE pre text; num int;
 BEGIN
   IF NEW.estado <> 'por_recoger' THEN RAISE EXCEPTION 'Un pedido nuevo empieza en por_recoger'; END IF;
+  -- Tarifa: la del área de la zona
   IF NEW.tarifa IS NULL THEN
-    SELECT a.tarifa INTO NEW.tarifa FROM areas a WHERE a.id = NEW.area_id AND a.activa;
-    IF NEW.tarifa IS NULL THEN RAISE EXCEPTION 'No hay cobertura en %', NEW.area_id; END IF;
+    SELECT a.tarifa INTO NEW.tarifa FROM zonas zo JOIN areas a ON a.id = zo.area_id AND a.activa
+    WHERE zo.id = NEW.zona_id AND zo.archivado_en IS NULL;
+    IF NEW.tarifa IS NULL THEN RAISE EXCEPTION 'La zona % no existe o no tiene cobertura', NEW.zona_id; END IF;
   END IF;
-  IF NEW.punto IS NOT NULL THEN
-    lat := ST_Y(NEW.punto::geometry); lon := ST_X(NEW.punto::geometry);
-    IF NEW.zona_id IS NULL THEN
-      SELECT * INTO z FROM zona_para_punto(lat, lon);
-      NEW.zona_id := z.id; NEW.fuera_de_zona := NOT coalesce(z.dentro, false);
-    END IF;
-    IF NEW.repartidor_id IS NULL AND NEW.zona_id IS NOT NULL THEN
-      SELECT zo.repartidor_id INTO NEW.repartidor_id FROM zonas zo
-        JOIN usuarios u ON u.id = zo.repartidor_id AND u.estado = 'activo'
-      WHERE zo.id = NEW.zona_id;
-    END IF;
+  -- Repartidor: el de la zona, si está activo
+  IF NEW.repartidor_id IS NULL THEN
+    SELECT zo.repartidor_id INTO NEW.repartidor_id FROM zonas zo
+      JOIN usuarios u ON u.id = zo.repartidor_id AND u.estado = 'activo'
+    WHERE zo.id = NEW.zona_id;
   END IF;
   IF NEW.codigo IS NULL THEN
     IF NEW.repartidor_id IS NOT NULL THEN
@@ -539,7 +534,7 @@ CREATE TRIGGER t_pedidos_estado BEFORE UPDATE OF estado ON pedidos FOR EACH ROW 
 
 -- Resumen por día
 CREATE VIEW v_resumen_diario AS
-SELECT programado_para AS dia,
+SELECT dia_de(creado) AS dia,
        count(*)                                         AS pedidos,
        count(*) FILTER (WHERE estado = 'entregado')     AS entregados,
        count(*) FILTER (WHERE estado = 'no_entregado')  AS no_entregados,
@@ -548,7 +543,7 @@ SELECT programado_para AS dia,
        sum(cobro) FILTER (WHERE estado = 'entregado')   AS recaudo,
        sum(tarifa) FILTER (WHERE estado = 'entregado')  AS ingresos_envio
 FROM pedidos
-GROUP BY programado_para;
+GROUP BY dia_de(creado);
 
 -- Por repartidor
 CREATE VIEW v_repartidores AS
@@ -574,13 +569,12 @@ JOIN usuarios u ON u.id = c.id
 LEFT JOIN pedidos p ON p.comercio_id = c.id
 GROUP BY c.id, u.nombre, u.estado;
 
--- Demanda en el mapa (capa "Calor"): solo coordenadas; el mapa las agrupa
-CREATE VIEW v_demanda_puntos AS
-SELECT p.programado_para AS dia, p.zona_id,
-       round(ST_Y(p.punto::geometry)::numeric, 5) AS lat,
-       round(ST_X(p.punto::geometry)::numeric, 5) AS lon
+-- Demanda en el mapa (capa "Calor"): pedidos por zona y día
+CREATE VIEW v_demanda_zonas AS
+SELECT p.zona_id, dia_de(p.creado) AS dia, count(*) AS pedidos
 FROM pedidos p
-WHERE p.punto IS NOT NULL AND p.estado <> 'cancelado';
+WHERE p.estado <> 'cancelado'
+GROUP BY p.zona_id, dia_de(p.creado);
 
 -- Carga de cada zona: pedidos al día (promedio de 30 días) frente a su capacidad
 CREATE VIEW v_cobertura_zonas AS
@@ -592,8 +586,8 @@ JOIN usuarios u ON u.id = z.repartidor_id
 LEFT JOIN LATERAL (
   SELECT avg(n) AS promedio FROM (
     SELECT count(*) AS n FROM pedidos p
-    WHERE p.zona_id = z.id AND p.programado_para > current_date - 30
-    GROUP BY p.programado_para) s
+    WHERE p.zona_id = z.id AND dia_de(p.creado) > dia_de(now()) - 30
+    GROUP BY dia_de(p.creado)) s
 ) d ON true
 WHERE z.archivado_en IS NULL;
 
@@ -632,7 +626,7 @@ CREATE TABLE metricas_repartidor_dia (
 CREATE INDEX metricas_repartidor_dia_idx ON metricas_repartidor_dia (dia);
 
 -- Recalcula un día completo (por defecto hoy). Se puede repetir sin duplicar.
-CREATE FUNCTION refrescar_metricas(p_dia date DEFAULT current_date) RETURNS void LANGUAGE plpgsql AS $$
+CREATE FUNCTION refrescar_metricas(p_dia date DEFAULT dia_de(now())) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   DELETE FROM metricas_comercio_dia WHERE dia = p_dia;
   INSERT INTO metricas_comercio_dia (comercio_id, dia, pedidos, entregados, no_entregados, cancelados, recaudo, tarifas, minutos_entrega)
@@ -649,7 +643,7 @@ BEGIN
     SELECT extract(epoch FROM p.cerrado_en - coalesce(min(e.ocurrido), p.creado))::bigint / 60 AS minutos
     FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido'
   ) t ON true
-  WHERE p.programado_para = p_dia
+  WHERE dia_de(p.creado) = p_dia
   GROUP BY p.comercio_id;
 
   DELETE FROM metricas_repartidor_dia WHERE dia = p_dia;
@@ -666,7 +660,7 @@ BEGIN
            sum(extract(epoch FROM p.cerrado_en - coalesce(
                  (SELECT min(e.ocurrido) FROM pedido_eventos e WHERE e.pedido_id = p.id AND e.estado = 'recogido'),
                  p.creado))::bigint / 60) FILTER (WHERE p.estado = 'entregado') AS minutos
-    FROM pedidos p WHERE p.repartidor_id = r.usuario_id AND p.programado_para = p_dia
+    FROM pedidos p WHERE p.repartidor_id = r.usuario_id AND dia_de(p.creado) = p_dia
   ) pd ON true
   WHERE pd.asignados > 0;
 END $$;

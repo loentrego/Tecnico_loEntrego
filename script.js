@@ -34,7 +34,7 @@
     metricas_comercio_dia: 'Números de cada comercio por día: pedidos, entregados, recaudo, tarifas y tiempo de entrega.',
     metricas_repartidor_dia: 'Números de cada repartidor por día: entregas, efectivo cobrado y tiempo de entrega. Al repartidor se le evalúa solo por métricas, no hay calificaciones.',
     repartidores: 'Datos del repartidor: cédula de ciudadanía (solo el número, no se valida por sistema), prefijo de sus guías y su contador, estado y contacto de emergencia. Empieza el día que se registra (usuarios.creado): el admin ya habló con él antes de enviarle el enlace.',
-    pedidos: 'Cada envío: destinatario, dirección, área, zona, cobro contraentrega, tarifa, repartidor y estado.',
+    pedidos: 'Cada envío: destinatario, dirección, zona (de ella salen el área y la tarifa), cobro contraentrega, tarifa, repartidor y estado.',
     pedido_eventos: 'Historial de estados con hora y usuario (la mini-ruta de la AppWeb).',
     asignaciones: 'Dato auxiliar: cada cambio de repartidor del pedido: quién lo tenía, a quién pasó, la hora y quién lo hizo. Se llena sola.',
     evidencias: 'Fotos y firmas de la entrega o del intento.',

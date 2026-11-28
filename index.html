@@ -303,7 +303,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
       <h3 class="h3">Lo que hace la base sola</h3>
       <div class="grid-2">
-        <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa</b> del área y la <b>zona</b> según las coordenadas, se lo asigna al <b>repartidor de esa zona</b> si está activo y arma el <b>número de guía</b> con su prefijo y su contador (<code>CRE-0000042</code>). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
+        <article class="rule-card"><h4>Al crear un pedido</h4><p>Con la <b>zona</b> que manda el backend (sacada de la dirección, sin guardar coordenadas) pone la <b>tarifa</b> de su área, se lo asigna al <b>repartidor de esa zona</b> si está activo y arma el <b>número de guía</b> con su prefijo y su contador (<code>CRE-0000042</code>). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
         <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre.</p></article>
         <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code>: quién lo tenía, a quién pasó, la hora y quién lo hizo.</p></article>
         <article class="rule-card"><h4>Métricas por día</h4><p>Cada comercio y cada repartidor tiene una fila por día en <code>metricas_comercio_dia</code> y <code>metricas_repartidor_dia</code>. El backend llama <code>refrescar_metricas()</code> cada pocos minutos y al cierre; los periodos salen sumando días, sin recorrer todos los pedidos.</p></article>
@@ -318,7 +318,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
             <tr><td><code>v_resumen_diario</code></td><td>Pedidos, entregados, no entregados, activos, efectividad, recaudo e ingresos por envío, por día.</td><td>Resumen (Hoy, 1 mes, 6 meses, 1 año, Histórico)</td></tr>
             <tr><td><code>v_repartidores</code></td><td>Entregas, no entregas, pedidos activos y zonas de cada repartidor.</td><td>Repartidores</td></tr>
             <tr><td><code>v_comercios</code></td><td>Pedidos, entregados, último pedido y recaudo de cada comercio.</td><td>Comercios</td></tr>
-            <tr><td><code>v_demanda_puntos</code></td><td>Coordenadas de los pedidos por día y zona (sin localidades).</td><td>Mapa → capa Calor</td></tr>
+            <tr><td><code>v_demanda_zonas</code></td><td>Pedidos por zona y día.</td><td>Mapa → capa Calor</td></tr>
             <tr><td><code>v_cobertura_zonas</code></td><td>Cada zona con su repartidor, pedidos al día (promedio de 30 días) y su carga frente a la capacidad.</td><td>Mapa → Zonas de reparto</td></tr>
             <tr><td><code>v_metricas_comercio</code></td><td>Por comercio y periodo: pedidos, entregados, no entregados, cancelados, efectividad, recaudo, tarifas y minutos promedio de entrega.</td><td>Comercios y AppWeb del comercio (Hoy, Semana, Mes, 6 meses, Año, Histórico)</td></tr>
             <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado y minutos promedio de entrega.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
@@ -414,8 +414,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=21"></script>
-<script src="datos/entradas.js?v=23"></script>
-<script src="script.js?v=23"></script>
+<script src="datos/esquema.js?v=22"></script>
+<script src="datos/entradas.js?v=24"></script>
+<script src="script.js?v=24"></script>
 </body>
 </html>
