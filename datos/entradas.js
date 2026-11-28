@@ -488,10 +488,12 @@ window.ENTRADAS = (() => {
         {
           id: 'adm-resumen', nombre: 'Resumen', archivo: 'Pages/paneladmin.html',
           controles: [
-            ['botón (radio)', 'Hoy · 1 mes · 6 meses · 1 año · Histórico', 'periodo', 'hoy · 1m · 6m · 1a · todo', 'resumen'],
+            ['botón (radio)', 'Hoy · 1 mes · 6 meses · 1 año · Histórico', 'periodo', 'Solo cambia las tarjetas de cifras', 'resumen'],
             ['tarjetas', 'Pedidos, entregados, efectividad, recaudo, ingresos', '—', 'Solo lectura', 'resumen'],
             ['tarjetas', 'Google Business · Instagram · Facebook', '—', '"Muy pronto": no se vinculan en la primera versión', 'local'],
-            ['listas en movimiento', 'Actividad reciente', '—', 'Solo lectura', 'resumen'],
+            ['lista en movimiento', 'Repartidores hoy', '—', 'Solo lectura · no depende del periodo', 'resumen'],
+            ['lista', 'Solicitudes de Únete', '—', 'No depende del periodo', 'solicitudes'],
+            ['botón', 'Ya la contacté', 'id', 'Quita la solicitud de la lista', 'solicitud-contactada'],
           ],
           llamadas: [
             {
@@ -510,6 +512,26 @@ window.ENTRADAS = (() => {
                 ['serie[].pedidos', 'entero', true, 41, ''],
               ],
               tablas: 'v_resumen_diario', errores: [],
+            },
+            {
+              id: 'solicitudes', nombre: 'Solicitudes de Únete', metodo: 'GET', ruta: '/api/admin/solicitudes?estado=nueva', auth,
+              cuando: 'Al entrar al Resumen (hoy se leen de localStorage "loentrego-admin-solicitudes").', envia: null,
+              recibe: [
+                ['solicitudes[]', 'lista', true, null, 'Más nuevas primero'],
+                ['solicitudes[].id', 'uuid', true, '3f1a…', ''],
+                ['solicitudes[].comercio', 'texto', true, 'Panadería La Espiga', ''],
+                ['solicitudes[].ubicacion', 'texto', true, 'Funza', ''],
+                ['solicitudes[].celular', 'texto', true, '3104445566', ''],
+                ['solicitudes[].pedidos_diarios', 'entero', false, 15, ''],
+                ['solicitudes[].mensaje', 'texto', false, 'Vendemos pan por encargo', ''],
+                ['solicitudes[].creado', 'fecha-hora', true, '2026-11-27T10:05:00-05:00', ''],
+              ],
+              tablas: 'solicitudes_comercio', errores: [],
+            },
+            {
+              id: 'solicitud-contactada', nombre: 'Marcar solicitud contactada', metodo: 'PATCH', ruta: '/api/admin/solicitudes/:id', auth,
+              cuando: 'Al tocar "Ya la contacté".', envia: [['estado', 'texto', true, 'contactada', '']],
+              recibe: [['ok', 'booleano', true, true, '']], tablas: 'solicitudes_comercio (estado, atendida_por)', errores: [],
             },
           ],
         },

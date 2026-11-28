@@ -11,14 +11,12 @@
 
   // ---------- Áreas: cómo se agrupan las tablas ----------
   const AREAS = [
-    { id: 'acceso', nombre: 'Acceso', color: '#3422A8', tablas: ['usuarios', 'sesiones', 'intentos_ingreso'], txt: 'Quién entra, desde dónde y con qué rol.' },
-    { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['areas', 'zonas'], txt: 'Áreas de cobertura con su tarifa, y las zonas de reparto de cada repartidor. Las direcciones se guardan solo como coordenadas.' },
-    { id: 'comercios', nombre: 'Comercios', color: '#5A48D6', tablas: ['comercios'], txt: 'Los clientes de LoEntrego y su punto de recogida. Sus métricas se calculan de los pedidos.' },
-    { id: 'repartidores', nombre: 'Repartidores', color: '#4F8DFF', tablas: ['repartidores'], txt: 'Quién reparte. Sus métricas se calculan de los pedidos.' },
-    { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'asignaciones', 'evidencias'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
+    { id: 'acceso', nombre: 'Acceso', color: '#3422A8', tablas: ['usuarios', 'comercios', 'repartidores', 'sesiones', 'intentos_ingreso'], txt: 'Quién entra y con qué rol: la cuenta (usuarios) y los datos propios del comercio o del repartidor. Sus métricas se calculan de los pedidos.' },
+    { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['areas', 'zonas'], txt: 'Áreas de cobertura con su tarifa, y las zonas de reparto de cada repartidor. No se guardan coordenadas: el pedido guarda su zona.' },
+    { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'evidencias'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
-    { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'postulaciones_repartidor', 'mensajes_contacto', 'enlaces_registro', 'registros_por_enlace'], txt: 'Formularios de la web y enlaces de registro del panel.' },
-    { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['archivos', 'estado_canales', 'mantenimientos', 'ajustes', 'auditoria'], txt: 'Archivos, página de mantenimiento, ajustes y auditoría.' },
+    { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'mensajes_contacto'], txt: 'Lo que llega de los formularios de la web. Los repartidores no se postulan: se habla con ellos y se les envía el enlace.' },
+    { id: 'sistema', nombre: 'Sistema', color: '#5D5889', tablas: ['enlaces_registro', 'registros_por_enlace', 'asignaciones', 'auditoria', 'archivos', 'estado_canales', 'mantenimientos', 'ajustes'], txt: 'Registros del sistema: enlaces creados y quién se registró con ellos, intercambios de repartidor (asignaciones), auditoría, archivos, mantenimiento y ajustes.' },
   ];
   const areaDe = {};
   AREAS.forEach((a) => a.tablas.forEach((t) => (areaDe[t] = a)));
@@ -41,7 +39,6 @@
     liquidacion_pedidos: 'Qué pedidos entran en cada liquidación. Un pedido se liquida una sola vez.',
     pagos_repartidor: 'Pago al repartidor por periodo: entregas por valor más ajustes.',
     solicitudes_comercio: 'Formulario "Únete" de la web. Se sigue hasta que se convierte en comercio.',
-    postulaciones_repartidor: 'Personas que quieren repartir con LoEntrego.',
     mensajes_contacto: 'Formulario de contacto de la web.',
     enlaces_registro: 'Enlaces que genera el panel para invitar comercios o repartidores, con usos y vencimiento.',
     registros_por_enlace: 'Quién se registró con cada enlace.',

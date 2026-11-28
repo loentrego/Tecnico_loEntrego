@@ -349,18 +349,6 @@ CREATE TABLE solicitudes_comercio (
 CREATE INDEX solicitudes_comercio_estado_idx ON solicitudes_comercio (estado, creado DESC);
 CREATE TRIGGER t_solicitudes_act BEFORE UPDATE ON solicitudes_comercio FOR EACH ROW EXECUTE FUNCTION tocar_actualizado();
 
--- Postulaciones de repartidores (si llegan por la web o por enlace)
-CREATE TABLE postulaciones_repartidor (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre        text NOT NULL,
-  celular       text NOT NULL,
-  area_id       text REFERENCES areas(id),
-  mensaje       text,
-  estado        estado_solicitud NOT NULL DEFAULT 'nueva',
-  repartidor_id uuid REFERENCES repartidores(usuario_id),
-  creado        timestamptz NOT NULL DEFAULT now()
-);
-
 -- Formulario de contacto de la web
 CREATE TABLE mensajes_contacto (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
