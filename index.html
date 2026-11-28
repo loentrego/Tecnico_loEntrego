@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=11">
 <link rel="icon" href="assets/icon-192.png">
 </head>
 <body>
@@ -303,7 +303,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
 
       <h3 class="h3">Lo que hace la base sola</h3>
       <div class="grid-2">
-        <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio y la <b>zona</b> según las coordenadas, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos (y jornada abierta). Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
+        <article class="rule-card"><h4>Al crear un pedido</h4><p>Pone la <b>tarifa vigente</b> del municipio y la <b>zona</b> según las coordenadas, y sugiere el <b>repartidor</b> de la zona con menos pedidos activos. Si la dirección cae en un hueco, usa la zona más cercana y marca <code>fuera_de_zona</code>.</p></article>
         <article class="rule-card"><h4>Al cambiar de estado</h4><p>Solo deja avanzar en orden: <span class="pill" data-tono="wait">Por recoger</span> → <span class="pill" data-tono="move">Recogido</span> → <span class="pill" data-tono="move">En camino</span> → <span class="pill" data-tono="ok">Entregado</span>, o <span class="pill" data-tono="fail">No entregado</span> con motivo. Un pedido cerrado no se reabre.</p></article>
         <article class="rule-card"><h4>Historial automático</h4><p>Cada cambio de estado queda en <code>pedido_eventos</code> con hora y usuario, y cada cambio de repartidor en <code>asignaciones</code>: quién lo tenía, a quién pasó, la hora y quién lo hizo.</p></article>
         <article class="rule-card"><h4>Métricas por día</h4><p>Cada comercio y cada repartidor tiene una fila por día en <code>metricas_comercio_dia</code> y <code>metricas_repartidor_dia</code>. El backend llama <code>refrescar_metricas()</code> cada pocos minutos y al cierre; los periodos salen sumando días, sin recorrer todos los pedidos.</p></article>
@@ -321,7 +321,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
             <tr><td><code>v_demanda_puntos</code></td><td>Coordenadas de los pedidos por día y zona (sin localidades).</td><td>Mapa → capa Calor</td></tr>
             <tr><td><code>v_cobertura_zonas</code></td><td>Repartidores por zona, promedio de pedidos de los últimos 30 días y cuántos repartidores faltan.</td><td>Mapa → Zonas de reparto</td></tr>
             <tr><td><code>v_metricas_comercio</code></td><td>Por comercio y periodo: pedidos, entregados, no entregados, cancelados, efectividad, recaudo, tarifas y minutos promedio de entrega.</td><td>Comercios y AppWeb del comercio (Hoy, Semana, Mes, 6 meses, Año, Histórico)</td></tr>
-            <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado, minutos promedio y horas conectado.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
+            <tr><td><code>v_metricas_repartidor</code></td><td>Por repartidor y periodo: asignados, entregados, efectividad, efectivo cobrado y minutos promedio de entrega.</td><td>Repartidores y AppWeb del repartidor (mismos periodos)</td></tr>
           </tbody>
         </table>
       </div>
@@ -354,7 +354,7 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
       <div class="nucleo" aria-label="Diagrama de las relaciones principales">
         <div class="n-box n-c" style="grid-area: com"><b>comercios</b><small>punto de recogida · metricas_comercio_dia</small></div>
         <div class="n-box n-c" style="grid-area: usu"><b>usuarios</b><small>sesiones · rol admin / comercio / repartidor</small></div>
-        <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>jornadas · metricas_repartidor_dia</small></div>
+        <div class="n-box n-c" style="grid-area: rep"><b>repartidores</b><small>metricas_repartidor_dia</small></div>
         <div class="n-box n-t" style="grid-area: ter"><b>territorio</b><small>municipios · tarifas · zonas_reparto</small></div>
         <div class="n-box n-p" style="grid-area: ped"><b>pedidos</b><small>el centro de todo</small></div>
         <div class="n-box n-d" style="grid-area: din"><b>dinero</b><small>cierres_caja · liquidaciones · pagos_repartidor</small></div>
@@ -414,8 +414,8 @@ curl -I https://app.loentrego.com/api/salud</code></pre>
   <span>© 2026 LoEntrego · Documentación técnica · Uso interno</span>
 </footer>
 
-<script src="datos/esquema.js?v=18"></script>
+<script src="datos/esquema.js?v=19"></script>
 <script src="datos/entradas.js?v=21"></script>
-<script src="script.js?v=19"></script>
+<script src="script.js?v=22"></script>
 </body>
 </html>

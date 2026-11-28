@@ -14,7 +14,7 @@
     { id: 'acceso', nombre: 'Acceso', color: '#3422A8', tablas: ['usuarios', 'sesiones', 'intentos_ingreso'], txt: 'Quién entra, desde dónde y con qué rol.' },
     { id: 'territorio', nombre: 'Territorio', color: '#2160C4', tablas: ['municipios', 'tarifas', 'zonas_reparto', 'zona_repartidores'], txt: 'Municipios, zonas de reparto y tarifas. Las direcciones se guardan solo como coordenadas y Place ID.' },
     { id: 'comercios', nombre: 'Comercios', color: '#5A48D6', tablas: ['comercios', 'metricas_comercio_dia'], txt: 'Los clientes de LoEntrego, su punto de recogida y sus métricas.' },
-    { id: 'repartidores', nombre: 'Repartidores', color: '#4F8DFF', tablas: ['repartidores', 'jornadas', 'metricas_repartidor_dia'], txt: 'Quién reparte, sus jornadas y métricas.' },
+    { id: 'repartidores', nombre: 'Repartidores', color: '#4F8DFF', tablas: ['repartidores', 'metricas_repartidor_dia'], txt: 'Quién reparte y sus métricas.' },
     { id: 'pedidos', nombre: 'Pedidos', color: '#B5DB2E', tablas: ['pedidos', 'pedido_eventos', 'asignaciones', 'evidencias'], txt: 'El centro: cada pedido, su historial y cómo terminó.' },
     { id: 'dinero', nombre: 'Dinero', color: '#FF8A1F', tablas: ['cierres_caja', 'liquidaciones', 'liquidacion_pedidos', 'pagos_repartidor'], txt: 'Recaudo contraentrega, cierres de caja, liquidaciones y pagos.' },
     { id: 'captacion', nombre: 'Captación', color: '#C3B9FF', tablas: ['solicitudes_comercio', 'postulaciones_repartidor', 'mensajes_contacto', 'enlaces_registro', 'registros_por_enlace'], txt: 'Formularios de la web y enlaces de registro del panel.' },
@@ -34,9 +34,8 @@
     zona_repartidores: 'Qué repartidores atienden cada zona (muchos a muchos).',
     comercios: 'Comercios, ecommerce y entidades públicas que envían con LoEntrego, con su cuenta para liquidar.',
     metricas_comercio_dia: 'Números de cada comercio por día: pedidos, entregados, recaudo, tarifas y tiempo de entrega.',
-    metricas_repartidor_dia: 'Números de cada repartidor por día: entregas, efectivo cobrado y horas conectado. Al repartidor se le evalúa solo por métricas, no hay calificaciones.',
+    metricas_repartidor_dia: 'Números de cada repartidor por día: entregas, efectivo cobrado y tiempo de entrega. Al repartidor se le evalúa solo por métricas, no hay calificaciones.',
     repartidores: 'Datos del repartidor: cédula de ciudadanía (solo el número, no se valida por sistema), prefijo de sus guías y su contador, estado y contacto de emergencia. Empieza el día que se registra (usuarios.creado): el admin ya habló con él antes de enviarle el enlace.',
-    jornadas: 'Cuándo empezó y terminó a trabajar cada repartidor. No se guarda su ubicación.',
     pedidos: 'Cada envío: destinatario, dirección, municipio, zona, cobro contraentrega, tarifa, repartidor y estado.',
     pedido_eventos: 'Historial de estados con hora y usuario (la mini-ruta de la AppWeb).',
     asignaciones: 'Dato auxiliar: cada cambio de repartidor del pedido: quién lo tenía, a quién pasó, la hora y quién lo hizo. Se llena sola.',
@@ -89,11 +88,19 @@
   const entrantes = {};
   E.tablas.forEach((t) => t.columnas.forEach((c) => { if (c.fk) (entrantes[c.fk.tabla] ||= []).push(t.nombre); }));
 
+  // Apila las tarjetas en dos columnas: cada una va a la columna más corta (sin huecos).
+  // En celular las columnas se deshacen y se ven en su orden original.
+  function apilar(tarjetas, altos) {
+    const cols = [[], []], alto = [0, 0];
+    tarjetas.forEach((html, i) => { const c = alto[0] <= alto[1] ? 0 : 1; cols[c].push(html); alto[c] += altos[i]; });
+    return cols.map((c) => `<div class="tbls-col">${c.join('')}</div>`).join('');
+  }
+
   $('#tablas-lista').innerHTML = AREAS.map((a) => `
     <div class="area" id="a-${a.id}" style="--c:${a.color}">
       <h3 class="area-t"><span></span>${a.nombre}<small>${a.tablas.length} tablas</small></h3>
       <div class="tbls">
-        ${a.tablas.filter((n) => porNombre[n]).map((n) => {
+        ${apilar(a.tablas.filter((n) => porNombre[n]).map((n, orden) => {
           const t = porNombre[n];
           const usan = [...new Set(entrantes[n] || [])].filter((x) => x !== n);
           return `<article class="tbl" id="t-${n}" data-busca="${esc(n)}">
@@ -101,10 +108,33 @@
             <p class="tbl-d">${esc(DESC[n] || '')}</p>
             <ul>${t.columnas.map(filaCol).join('')}</ul>
             ${usan.length ? `<p class="tbl-in">La usan: ${usan.map((u) => `<a href="#t-${u}">${u}</a>`).join(' ')}</p>` : ''}
-          </article>`;
-        }).join('')}
+          </article>`.replace('<article class="tbl"', `<article class="tbl" style="order:${orden}"`);
+        }), a.tablas.filter((n) => porNombre[n]).map((n) => porNombre[n].columnas.length * 33 + (DESC[n] || '').length * 0.55 + ((entrantes[n] || []).length ? 160 : 110)))}
       </div>
     </div>`).join('');
+
+  // Reparto final con la altura real de cada tarjeta (las alturas de arriba son solo un estimado)
+  function equilibrar() {
+    document.querySelectorAll('.tbls').forEach((caja) => {
+      const cols = caja.querySelectorAll('.tbls-col');
+      if (cols.length !== 2) return;
+      const tarjetas = [...caja.querySelectorAll('.tbl')].sort((x, y) => (+x.style.order) - (+y.style.order));
+      const altos = tarjetas.map((t) => t.offsetHeight);
+      // Prueba todas las formas de repartirlas (son pocas por área) y se queda con la más pareja;
+      // dentro de cada columna se mantiene el orden original
+      let mejor = 0, peor = Infinity;
+      for (let m = 0; m < 1 << tarjetas.length; m++) {
+        if (m & 1) continue;   // la primera tarjeta siempre arriba a la izquierda
+        const alto = [0, 0];
+        altos.forEach((h, i) => { alto[(m >> i) & 1] += h; });
+        const dif = Math.abs(alto[0] - alto[1]);
+        if (dif < peor) { peor = dif; mejor = m; }
+      }
+      tarjetas.forEach((t, i) => cols[(mejor >> i) & 1].appendChild(t));
+    });
+  }
+  equilibrar();
+  document.fonts?.ready.then(equilibrar);
 
   // Tablas que no estén en ninguna área (por si el esquema crece): se avisa en consola
   const sinArea = E.tablas.map((t) => t.nombre).filter((n) => !areaDe[n]);

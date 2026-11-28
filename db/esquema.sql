@@ -159,16 +159,6 @@ CREATE TABLE repartidores (
 );   -- nombre, celular, correo y fechas: en usuarios
 CREATE TRIGGER t_repartidores_act AFTER UPDATE ON repartidores FOR EACH ROW EXECUTE FUNCTION tocar_usuario('usuario_id');
 
--- Jornadas: cuándo estuvo disponible (no se rastrea su ubicación)
-CREATE TABLE jornadas (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  repartidor_id   uuid NOT NULL REFERENCES repartidores(usuario_id),
-  inicio          timestamptz NOT NULL DEFAULT now(),
-  fin             timestamptz,
-  CHECK (fin IS NULL OR fin > inicio)
-);
-CREATE UNIQUE INDEX jornadas_una_abierta ON jornadas (repartidor_id) WHERE fin IS NULL;
-
 -- =====================================================================
 --  5. ZONAS DE REPARTO (editables en el panel: Mapa → Zonas de reparto)
 -- =====================================================================
@@ -486,7 +476,7 @@ RETURNS TABLE (id text, nombre text, dentro boolean) LANGUAGE sql STABLE AS $$
   LIMIT 1
 $$;
 
--- Repartidor sugerido: de los que atienden la zona, activo y con jornada abierta, el de menos pedidos activos
+-- Repartidor sugerido: de los que atienden la zona y están activos, el de menos pedidos activos
 CREATE FUNCTION repartidor_sugerido(p_zona text) RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT zr.repartidor_id
   FROM zona_repartidores zr
@@ -494,8 +484,7 @@ CREATE FUNCTION repartidor_sugerido(p_zona text) RETURNS uuid LANGUAGE sql STABL
   LEFT JOIN pedidos p ON p.repartidor_id = zr.repartidor_id AND p.estado IN ('por_recoger', 'recogido', 'en_camino')
   WHERE zr.zona_id = p_zona
   GROUP BY zr.repartidor_id
-  ORDER BY EXISTS (SELECT 1 FROM jornadas j WHERE j.repartidor_id = zr.repartidor_id AND j.fin IS NULL) DESC,
-           count(p.id), min(zr.desde)
+  ORDER BY count(p.id), min(zr.desde)
   LIMIT 1
 $$;
 
@@ -655,7 +644,6 @@ CREATE TABLE metricas_repartidor_dia (
   no_entregados     int NOT NULL DEFAULT 0,
   cobrado           bigint NOT NULL DEFAULT 0,       -- efectivo recibido en entregas
   minutos_entrega   bigint NOT NULL DEFAULT 0,
-  minutos_jornada   int NOT NULL DEFAULT 0,          -- tiempo conectado ese día
   calculado         timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (repartidor_id, dia)
 );
@@ -683,11 +671,10 @@ BEGIN
   GROUP BY p.comercio_id;
 
   DELETE FROM metricas_repartidor_dia WHERE dia = p_dia;
-  INSERT INTO metricas_repartidor_dia (repartidor_id, dia, asignados, entregados, no_entregados, cobrado, minutos_entrega, minutos_jornada)
+  INSERT INTO metricas_repartidor_dia (repartidor_id, dia, asignados, entregados, no_entregados, cobrado, minutos_entrega)
   SELECT r.usuario_id, p_dia,
          coalesce(pd.asignados, 0), coalesce(pd.entregados, 0), coalesce(pd.no_entregados, 0),
-         coalesce(pd.cobrado, 0), coalesce(pd.minutos, 0),
-         coalesce(j.minutos, 0)
+         coalesce(pd.cobrado, 0), coalesce(pd.minutos, 0)
   FROM repartidores r
   LEFT JOIN LATERAL (
     SELECT count(*) AS asignados,
@@ -699,11 +686,7 @@ BEGIN
                  p.creado))::bigint / 60) FILTER (WHERE p.estado = 'entregado') AS minutos
     FROM pedidos p WHERE p.repartidor_id = r.usuario_id AND p.programado_para = p_dia
   ) pd ON true
-  LEFT JOIN LATERAL (
-    SELECT sum(extract(epoch FROM coalesce(jo.fin, now()) - jo.inicio))::int / 60 AS minutos
-    FROM jornadas jo WHERE jo.repartidor_id = r.usuario_id AND jo.inicio::date = p_dia
-  ) j ON true
-  WHERE pd.asignados > 0 OR j.minutos > 0;
+  WHERE pd.asignados > 0;
 END $$;
 
 -- Periodos que usan el panel y la AppWeb
@@ -736,8 +719,7 @@ SELECT m.repartidor_id, pe.periodo, pe.orden,
        sum(m.no_entregados)::int AS no_entregados,
        round(100.0 * sum(m.entregados) / nullif(sum(m.entregados) + sum(m.no_entregados), 0), 1) AS efectividad,
        sum(m.cobrado)::bigint AS cobrado,
-       round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio,
-       round(sum(m.minutos_jornada) / 60.0, 1) AS horas_jornada
+       round(sum(m.minutos_entrega)::numeric / nullif(sum(m.entregados), 0), 0) AS minutos_promedio
 FROM periodos pe
 JOIN metricas_repartidor_dia m ON m.dia >= pe.desde
 GROUP BY m.repartidor_id, pe.periodo, pe.orden;
